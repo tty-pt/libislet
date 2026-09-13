@@ -1636,7 +1636,7 @@ __attribute__((constructor)) static void islet_rec_axis_init(void)
 }
 
 /*
- * rec_axis_open convention (PLAN-REC-QUERY.md §4.3, optional CLI-open
+ * rec_axis_open convention (RECALL-KERNEL.md "rec_axis_open convention", optional CLI-open
  * convention, not part of libqmap's core rec_query registry API): spec
  * is "filename:database:mask" (`:`-separated, any/all fields may be
  * empty for islet_open()'s NULL/0 defaults). Returns the uint32_t db

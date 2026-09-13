@@ -15,6 +15,17 @@ A small library for spatial/geographic databases. Store and query data indexed b
 - **Simple C API**: Minimal, easy-to-use interface
 - **Sparse Data Efficient**: Only stores occupied coordinates
 
+## ID-uniformity contract
+
+Stored per-cell values ("thing"/"ref") are `uint32_t` by design — a
+deliberate storage/SIMD tradeoff, not a gap. Consumers that join islet with
+libjoint/libsepal/libstoma (or any `rec.h`-based recall-kernel composition)
+should rely on the widening that already happens at
+`rec_axis_fill_bbox_N()` / `Point*.fill_bbox()`: every stored `uint32_t` is
+promoted to `rec_ref_t` (u32 — an identity widening since the retype)
+there, and that is the only place the uniformity boundary is guaranteed. Ids above `UINT32_MAX` do not round-trip
+through `islet_put_N()`/`islet_get_N()`.
+
 ## Quick Start
 
 ```c
@@ -282,7 +293,9 @@ This follows the recall-kernel adapter contract
 (`docs/RECALL-KERNEL.md` in libqmap): one `int rec_axis_fill_*(params,
 rec_set_t *out)` that streams matches into the set and seals it, plain
 `int` return (0 ok / -1 error), additive — the standard
-`islet_iter`/`islet_next` cursor and `islet_search` raw path remain. The ref is
+`islet_iter`/`islet_next` cursor remains as the raw path (it replaced the
+old matrix-output `geo_search`, removed long before the libgeo→libislet
+rename; no `islet_search` symbol exists). The ref is
 libislet's stored `uint32` cell value widened to `rec_ref_t`; the kernel
 never interprets it. Because both the raw iterator and the fill share
 `islet_box_visit`, the Z-interval skip speeds the fill too, and fills never

@@ -86,6 +86,19 @@
  *  @note Memory: Malloc failures terminate the process immediately via CBUG().
  *        There is no graceful error handling for out-of-memory conditions.
  *
+  *  @note ID-uniformity contract (see RECALL-KERNEL.md): the per-cell
+  *        stored value ("thing"/"ref") is intentionally `uint32_t`, not
+  *        the wider `rec_ref_t` — which is itself `uint32_t` (from
+  *        rec.h), matching what libsepal/libstoma use natively and
+  *        libjoint widens to at its fill boundary, so the fill widen is
+  *        now an identity cast. Islet's storage/SIMD paths are
+ *        tuned around the 4-byte value; doubling it is a real cost, not
+ *        a free uniformity win. The uniformity boundary is enforced only
+ *        at rec_axis_fill_bbox_N(), which already widens every stored
+ *        uint32_t to rec_ref_t before pushing it into the caller's
+ *        rec_set_t. Do not assume ids above UINT32_MAX round-trip through
+ *        islet_put_N()/islet_get_N().
+ *
  *  @warning File Persistence: File-backed databases are automatically saved
  *           at process exit via libqmap. Explicit qmap_save() calls are only
  *           needed for mid-execution checkpointing.
@@ -963,7 +976,7 @@ int rec_axis_fill_bbox_4(uint32_t pdb_hd, int16_t *s,
 		uint16_t *l, rec_set_t *out);
 
 /*
- * rec_axis_open (PLAN-REC-QUERY.md §4.3, optional CLI-open convention,
+ * rec_axis_open (RECALL-KERNEL.md "rec_axis_open convention", optional CLI-open convention,
  * not part of libqmap's core rec_query registry API): opens an islet
  * store from an opaque "filename:database:mask" spec string (`:`-
  * separated; any/all fields may be empty for islet_open()'s NULL/0
