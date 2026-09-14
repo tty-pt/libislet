@@ -12,8 +12,10 @@
 #include "../include/ttypt/pointcfg.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include <ttypt/qsys.h>
 #include <ttypt/idm.h>
@@ -1625,6 +1627,502 @@ static void *islet_decode(const char *str)
 	return p;
 }
 
+/* =====================================================================
+ * Phase 2A store/unstore/readback (RECALL-KERNEL.md "rec_axis_store
+ * convention", optional CLI-specific — not libqmap core API). ctx is the
+ * grid db handle widened to a pointer via uintptr_t (same cast
+ * rec_axis_open/islet_fill use); the locked contract rejects ctx ==
+ * NULL. spec is reserved (NULL). The grammar is the whole value string:
+ * a point list "x,y[,z];x2,y2" (`;`-separated points, `,`-separated
+ * int16 coords; dim = first point's coord count, 1..4; int16 lanes
+ * only), parsed strictly, never split by the consumer.
+ *
+ * The grid is keyed by cell, the value is the ref — a ref is not
+ * discoverable backwards without an inverse, so the store maintains a
+ * rev manifest (ref -> cells) as its own single-map "<fname>.ridx"
+ * sidecar: qmap u32 ref -> `;`-joined canonical point string,
+ * replace-in-place per ref. unstore walks it backwards, O(cells-of-ref),
+ * never a scan; readback renders it NUL-joined, round-trippable.
+ * ===================================================================== */
+
+/* Strict whole-string point-list parse. pts must hold cap points (each
+ * int16[4]); dim/n out on success. errno: EINVAL grammar, ERANGE over
+ * ISLET_AXIS_MAX_POINTS. Tokens are [-+]?[0-9]+ only (no whitespace,
+ * no empty lanes/points, uniform dim across points). */
+static int
+islet_axis_parse(const char *value, int16_t (*pts)[4], size_t cap,
+		int *dim_out, size_t *n_out)
+{
+	size_t n = 0;
+	int dim = 0;
+	const char *s = value;
+
+	if (!value || !*value) {
+		errno = EINVAL;
+		return -1;
+	}
+	while (1) {
+		int d = 0;
+		int16_t p[4];
+
+		for (;;) {
+			char *end;
+			long v;
+
+			if (d >= 4) {
+				errno = EINVAL;
+				return -1; /* fifth lane: no dim accepts it */
+			}
+			if (*s != '-' && *s != '+' &&
+					(*s < '0' || *s > '9')) {
+				errno = EINVAL;
+				return -1;
+			}
+			errno = 0;
+			v = strtol(s, &end, 10);
+			if (end == s || errno == ERANGE ||
+					v < INT16_MIN || v > INT16_MAX) {
+				errno = EINVAL;
+				return -1;
+			}
+			p[d++] = (int16_t)v;
+			s = end;
+			if (*s == ',') {
+				s++;
+				if (!*s) {
+					errno = EINVAL;
+					return -1; /* trailing comma */
+				}
+				continue;
+			}
+			break;
+		}
+		if (!dim)
+			dim = d;
+		else if (d != dim) {
+			errno = EINVAL;
+			return -1; /* mixed dims across points */
+		}
+		if (n >= cap || n >= ISLET_AXIS_MAX_POINTS) {
+			errno = ERANGE;
+			return -1;
+		}
+		memcpy(pts[n++], p, sizeof(p));
+		if (!*s)
+			break;
+		if (*s != ';') {
+			errno = EINVAL;
+			return -1;
+		}
+		s++;
+		if (!*s) {
+			errno = EINVAL;
+			return -1; /* trailing ';' */
+		}
+	}
+	*dim_out = dim;
+	*n_out = n;
+	return 0;
+}
+
+/* Display length of one canonical point ("x", "x,y", ...). */
+static size_t
+islet_axis_point_len(int16_t *p, int dim)
+{
+	size_t t = 0;
+	int i;
+
+	for (i = 0; i < dim; i++)
+		t += (size_t)snprintf(NULL, 0, "%s%d", i ? "," : "", p[i]);
+	return t;
+}
+
+/* Emit one canonical point into w (NUL-terminated); returns strlen. */
+static size_t
+islet_axis_point_emit(char *w, int16_t *p, int dim)
+{
+	size_t t = 0;
+	int i;
+
+	for (i = 0; i < dim; i++)
+		t += (size_t)sprintf(w + t, "%s%d", i ? "," : "", p[i]);
+	return t;
+}
+
+/* Canonical store-grammar emit of a point list: "x[,y...]" per point,
+ * `;`-joined, NUL-terminated (never empty on the store path). */
+static char *
+islet_axis_emit(int16_t (*pts)[4], size_t n, int dim)
+{
+	size_t total = 0, i;
+	char *buf, *w;
+
+	for (i = 0; i < n; i++)
+		total += islet_axis_point_len(pts[i], dim) + 1; /* +';' */
+	buf = malloc(total ? total : 1);
+	CBUG(!buf, "out of memory in islet_axis_emit");
+	w = buf;
+	for (i = 0; i < n; i++) {
+		w += islet_axis_point_emit(w, pts[i], dim);
+		*w++ = ';';
+	}
+	if (n)
+		w[-1] = '\0';
+	else
+		*w = '\0';
+	return buf;
+}
+
+/* Dim-dispatched morton encode / put / delete-by-value (dim 1..4,
+ * int16 lanes — the adapter configs). */
+static uint64_t
+islet_axis_morton(int16_t *p, int dim)
+{
+	switch (dim) {
+	case 1:
+		return morton_set_1_il(p);
+	case 2:
+		return morton_set_2_il(p);
+	case 3:
+		return morton_set_3_il(p);
+	default:
+		return morton_set_4_il(p);
+	}
+}
+
+static void
+islet_axis_put(uint32_t db, int16_t *p, int dim, uint32_t ref)
+{
+	switch (dim) {
+	case 1:
+		islet_put_1(db, p, ref);
+		break;
+	case 2:
+		islet_put_2(db, p, ref);
+		break;
+	case 3:
+		islet_put_3(db, p, ref);
+		break;
+	default:
+		islet_put_4(db, p, ref);
+		break;
+	}
+}
+
+/* Per-cell chain cursors feed this family: collect the cell's values,
+ * delete the key wholesale, re-put every survivor (relative order kept),
+ * reporting how many target copies vanished. O(cell size), only when the
+ * value is present. */
+#define ISLET_DELVALUE_CFG(NAME, PT, MSET) \
+uint32_t \
+islet_del_value_##NAME(uint32_t pdb_hd, PT *p, uint32_t thing) \
+{ \
+	uint64_t code = MSET(p); \
+	uint32_t cnt = qmap_count(pdb_hd, &code); \
+	uint32_t cur; \
+	uint32_t v, *vals, n = 0, i, out = 0, removed = 0; \
+	 \
+	if (!cnt) \
+		return 0; \
+	vals = malloc(cnt * sizeof(*vals)); \
+	CBUG(!vals, "out of memory in islet_del_value"); \
+	cur = islet_get_multi_##NAME(pdb_hd, p); \
+	if (cur == QM_MISS) { \
+		free(vals); \
+		return 0; \
+	} \
+	while (n < cnt && islet_cell_next(&v, cur)) \
+		vals[n++] = v; \
+	if (n == cnt) { \
+		uint32_t junk; \
+		islet_cell_next(&junk, cur); /* tail call: returns 0, \
+					      * cursor freed */ \
+	} \
+	for (i = 0; i < n; i++) { \
+		if (vals[i] == thing) \
+			removed++; \
+		else \
+			vals[out++] = vals[i]; \
+	} \
+	if (removed) { \
+		qmap_del_all(pdb_hd, &code); \
+		for (i = 0; i < out; i++) \
+			qmap_put(pdb_hd, &code, &vals[i]); \
+	} \
+	free(vals); \
+	return removed; \
+}
+
+ISLET_DELVALUE_CFG(1, int16_t, morton_set_1_il)
+ISLET_DELVALUE_CFG(2, int16_t, morton_set_2_il)
+ISLET_DELVALUE_CFG(3, int16_t, morton_set_3_il)
+ISLET_DELVALUE_CFG(4, int16_t, morton_set_4_il)
+ISLET_DELVALUE_CFG(2_32, int32_t, morton_set_2_32_il)
+#undef ISLET_DELVALUE_CFG
+
+static uint32_t
+islet_axis_del_value(uint32_t db, int16_t *p, int dim, uint32_t ref)
+{
+	switch (dim) {
+	case 1:
+		return islet_del_value_1(db, p, ref);
+	case 2:
+		return islet_del_value_2(db, p, ref);
+	case 3:
+		return islet_del_value_3(db, p, ref);
+	default:
+		return islet_del_value_4(db, p, ref);
+	}
+}
+
+/* Grid handle -> rev manifest handle pairs. rec_axis_open registers the
+ * pair it opens (file-backed rev when the spec names a file, in-memory
+ * otherwise); a store against a raw islet_open() handle registers a lazy
+ * in-memory rev — the persistence-complete path is rec_axis_open only.
+ * Process-lifetime registry; rev maps save with the process (single-writer,
+ * no-close invariant, same as the grid). */
+typedef struct {
+	uint32_t grid;
+	uint32_t rev;
+	char *fname; /* owned strdup of the grid spec fname (NULL: memory) */
+	char *spec; /* owned rec_axis_open parse buffer (NULL: lazy path);
+		     * the grid's qmap head points into it — freed only
+		     * with the process, never during the run */
+} islet_rev_t;
+
+static islet_rev_t *islet_revs;
+static size_t islet_revs_n, islet_revs_cap;
+
+static int
+islet_rev_index(uint32_t grid)
+{
+	size_t i;
+
+	for (i = 0; i < islet_revs_n; i++)
+		if (islet_revs[i].grid == grid)
+			return (int)i;
+	return -1;
+}
+
+/* Open a grid's rev manifest: the single map in "<fname>.ridx"
+ * (in-memory when fname is NULL). Returns the rev hd or QM_MISS. The
+ * ridx name is kept process-lifetime: qmap_open does not copy the
+ * filename, and it must stay valid while the map is open. */
+static uint32_t
+islet_rev_register(uint32_t grid, const char *fname, const char *dbname,
+		uint32_t mask, char *specbuf)
+{
+	int i = islet_rev_index(grid);
+	uint32_t rev;
+	char *rname = NULL, *gname = NULL;
+
+	islet_init();
+	if (i >= 0) {
+		free(specbuf);
+		return islet_revs[i].rev;
+	}
+	if (fname) {
+		size_t n = strlen(fname) + strlen(".ridx") + 1;
+
+		rname = malloc(n);
+		CBUG(!rname, "out of memory in islet_rev_register");
+		snprintf(rname, n, "%s.ridx", fname);
+		gname = strdup(fname);
+		CBUG(!gname, "out of memory in islet_rev_register");
+	}
+	rev = qmap_open(rname, dbname, qm_u, QM_STR, mask, 0);
+	if (rev == QM_MISS) {
+		free(rname);
+		free(gname);
+		free(specbuf);
+		return QM_MISS;
+	}
+	if (islet_revs_n == islet_revs_cap) {
+		size_t ncap = islet_revs_cap ? islet_revs_cap * 2 : 8;
+		islet_rev_t *nb = realloc(islet_revs, ncap * sizeof(*nb));
+
+		CBUG(!nb, "out of memory in islet_rev_register");
+		islet_revs = nb;
+		islet_revs_cap = ncap;
+	}
+	islet_revs[islet_revs_n].grid = grid;
+	islet_revs[islet_revs_n].rev = rev;
+	islet_revs[islet_revs_n].fname = gname;
+	islet_revs[islet_revs_n].spec = specbuf;
+	islet_revs_n++;
+	return rev;
+}
+
+/* Rev handle for a grid, registering the lazy in-memory fallback when
+ * the grid never passed through rec_axis_open. */
+static uint32_t
+islet_rev_for(uint32_t grid)
+{
+	int i = islet_rev_index(grid);
+
+	if (i >= 0)
+		return islet_revs[i].rev;
+	return islet_rev_register(grid, NULL, NULL, 0, NULL);
+}
+
+int
+rec_axis_unstore(void *ctx, rec_ref_t ref)
+{
+	uint32_t db = (uint32_t)(uintptr_t)ctx;
+	uint32_t rev;
+	const void *val;
+	int16_t (*pts)[4] = NULL;
+	int dim = 0;
+	size_t n = 0, i;
+
+	if (!ctx) {
+		errno = EINVAL;
+		return -1;
+	}
+	rev = islet_rev_for(db);
+	if (rev == QM_MISS) {
+		errno = ENOMEM;
+		return -1;
+	}
+	val = qmap_get(rev, &ref);
+	if (!val)
+		return 0; /* idempotent: ref owns nothing here */
+	pts = malloc(ISLET_AXIS_MAX_POINTS * sizeof(*pts));
+	CBUG(!pts, "out of memory in rec_axis_unstore");
+	if (islet_axis_parse(val, pts, ISLET_AXIS_MAX_POINTS, &dim,
+			&n) != 0) {
+		/* Unreachable through the adapters: store writes canonical
+		 * strings only. A corrupt manifest fails loud, not silent. */
+		free(pts);
+		errno = EINVAL;
+		return -1;
+	}
+	/* Walk the manifest backwards: each cell loses exactly this ref
+	 * (shared cells keep their other refs via del_value); then drop
+	 * the ref's own manifest entry. O(cells-of-ref). */
+	for (i = 0; i < n; i++)
+		islet_axis_del_value(db, pts[i], dim, (uint32_t)ref);
+	qmap_del(rev, &ref);
+	free(pts);
+	return 0;
+}
+
+int
+rec_axis_readback(void *ctx, rec_ref_t ref, char **blob_out, size_t *n_out)
+{
+	uint32_t db = (uint32_t)(uintptr_t)ctx;
+	uint32_t rev;
+	const void *val;
+	int16_t (*pts)[4] = NULL;
+	int dim = 0;
+	size_t n = 0, i, total = 0;
+	char *blob, *w;
+
+	if (blob_out)
+		*blob_out = NULL;
+	if (n_out)
+		*n_out = 0;
+	if (!ctx || !blob_out || !n_out) {
+		errno = EINVAL;
+		return -1;
+	}
+	rev = islet_rev_for(db);
+	if (rev == QM_MISS) {
+		errno = ENOMEM;
+		return -1;
+	}
+	val = qmap_get(rev, &ref);
+	if (!val)
+		return 0; /* absent -> NULL/0, still 0 */
+	pts = malloc(ISLET_AXIS_MAX_POINTS * sizeof(*pts));
+	CBUG(!pts, "out of memory in rec_axis_readback");
+	if (islet_axis_parse(val, pts, ISLET_AXIS_MAX_POINTS, &dim,
+			&n) != 0 || n == 0) {
+		free(pts);
+		errno = EINVAL;
+		return -1;
+	}
+	/* One entry per cell in the store grammar, NUL-joined —
+	 * round-trippable back through store. */
+	for (i = 0; i < n; i++)
+		total += islet_axis_point_len(pts[i], dim) + 1;
+	blob = malloc(total);
+	CBUG(!blob, "out of memory in rec_axis_readback");
+	w = blob;
+	for (i = 0; i < n; i++)
+		w += islet_axis_point_emit(w, pts[i], dim) + 1;
+	free(pts);
+	*blob_out = blob;
+	*n_out = total;
+	return 0;
+}
+
+int
+rec_axis_store(void *ctx, const char *spec, rec_ref_t ref, const char *value)
+{
+	uint32_t db = (uint32_t)(uintptr_t)ctx;
+	uint32_t rev;
+	int16_t (*pts)[4] = NULL;
+	int16_t (*kpts)[4] = NULL;
+	uint64_t *codes = NULL;
+	int dim = 0;
+	size_t n = 0, i, k = 0;
+	char *joined;
+
+	(void)spec; /* reserved — NULL */
+	if (!ctx || !value || !*value) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (ref == UINT32_MAX) {
+		errno = EINVAL;
+		return -1;
+	}
+	pts = malloc(ISLET_AXIS_MAX_POINTS * sizeof(*pts));
+	CBUG(!pts, "out of memory in rec_axis_store");
+	if (islet_axis_parse(value, pts, ISLET_AXIS_MAX_POINTS, &dim,
+			&n) != 0) {
+		free(pts);
+		return -1; /* errno set by the parser */
+	}
+	rev = islet_rev_for(db);
+	if (rev == QM_MISS) {
+		free(pts);
+		errno = ENOMEM;
+		return -1;
+	}
+	/* Replace-in-place (a ref owns one footprint): clear the ref's
+	 * previous cells first, so re-store is idempotent. */
+	if (rec_axis_unstore(ctx, ref) != 0) {
+		free(pts);
+		return -1;
+	}
+	codes = malloc(n * sizeof(*codes));
+	kpts = malloc(n * sizeof(*kpts));
+	CBUG(!(codes && kpts), "out of memory in rec_axis_store");
+	for (i = 0; i < n; i++) {
+		uint64_t c = islet_axis_morton(pts[i], dim);
+		size_t j;
+
+		for (j = 0; j < k; j++)
+			if (codes[j] == c)
+				break; /* in-call dup: already stored */
+		if (j < k)
+			continue;
+		islet_axis_put(db, pts[i], dim, (uint32_t)ref);
+		codes[k] = c;
+		memcpy(kpts[k], pts[i], sizeof(kpts[k]));
+		k++;
+	}
+	joined = islet_axis_emit(kpts, k, dim);
+	qmap_put(rev, &ref, joined);
+	free(joined);
+	free(codes);
+	free(kpts);
+	free(pts);
+	return 0;
+}
+
 __attribute__((constructor)) static void islet_rec_axis_init(void)
 {
 	static const rec_axis_t islet_axis = {
@@ -1647,7 +2145,7 @@ void *rec_axis_open(const char *spec)
 {
 	char *buf, *cur, *fname, *dbname, *maskstr;
 	uint32_t mask;
-	uint32_t db;
+	uint32_t db, rev;
 
 	if (!spec)
 		spec = "";
@@ -1670,7 +2168,19 @@ void *rec_axis_open(const char *spec)
 
 	mask = (maskstr && *maskstr) ? (uint32_t)strtoul(maskstr, NULL, 10) : 0;
 	db = islet_open(*fname ? fname : NULL, *dbname ? dbname : NULL, mask);
-
-	free(buf);
+	if (db == QM_MISS) {
+		free(buf);
+		return NULL;
+	}
+	/* The phase-2A rev manifest: file-backed sidecar when the spec
+	 * names a file, in-memory otherwise. buf is handed to the registry
+	 * (never freed mid-run): the grid's qmap head keeps a pointer into
+	 * it for the map's lifetime, per the islet_open contract. */
+	rev = islet_rev_register(db,
+			*fname ? fname : NULL,
+			*dbname ? dbname : NULL,
+			mask, buf);
+	if (rev == QM_MISS)
+		return NULL;
 	return (void *)(uintptr_t)db;
 }

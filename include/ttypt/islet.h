@@ -123,6 +123,15 @@
 #define ISLET_FILL_MAX_VOL 1048576u
 
 /**
+ * Maximum point count accepted by the phase-2A `rec_axis_store` value
+ * grammar (`"x,y[,z];x2,y2"`). A value listing more points is rejected
+ * with -1 (`errno` = `ERANGE`): almost certainly a caller bug, and the
+ * grid + `rev` writes would be large. The point count is the number of
+ * `;`-separated points, whatever their dimension.
+ */
+#define ISLET_AXIS_MAX_POINTS 1024u
+
+/**
  * @brief Initialize the islet subsystem.
  *
  * Registers custom types with libqmap (uint64_t for Morton codes, uint32_t
@@ -508,6 +517,12 @@ islet_del_all_2_32(uint32_t pdb_hd, int32_t *p)
 }
 
 /**
+ * @brief 2D x 32-bit delete-by-value. See islet_del_value_1() for the
+ *        family docs.
+ */
+uint32_t islet_del_value_2_32(uint32_t pdb_hd, int32_t *p, uint32_t thing);
+
+/**
  * @brief Retrieve the value stored at a spatial coordinate.
  *
  * Per-dimension variants (islet_get_1..4). Looks up the value at the given
@@ -758,6 +773,45 @@ uint32_t islet_get_multi_2_32(uint32_t pdb_hd, int32_t *p);
 int islet_cell_next(uint32_t *ref, uint32_t cur);
 
 /**
+ * @brief Delete one value from a spatial coordinate (phase-2A adapter
+ *        primitive).
+ *
+ * Per-dimension variants (islet_del_value_1..4). Removes every entry
+ * holding `thing` from the cell at the given point, leaving the cell's
+ * other values untouched (in their relative order). Where islet_del_N()
+ * removes the first value and islet_del_all_N() clears the cell, this one
+ * removes by value — exactly what `rec_axis_unstore` needs when several
+ * refs share one cell.
+ *
+ * @param[in] pdb_hd Database handle from islet_open().
+ * @param[in] p      Point coordinate. Array of int16_t with at least the
+ *                   dimension count of the function used.
+ * @param[in] thing  Value to remove (uint32_t).
+ *
+ * @return Number of entries removed (0 when the cell is empty or holds
+ *         no such value).
+ *
+ * @note A pure cell primitive: it knows nothing of the phase-2A `rev`
+ *       manifest. The `rec_axis_unstore` adapter (the rev-aware path) keeps
+ *       cell and manifest in sync; callers manipulating the grid directly
+ *       own that sync themselves.
+ *
+ * Example:
+ * @code
+ * int16_t pos[3] = {10, 20, 30};
+ * islet_put_3(db, pos, 7);
+ * islet_put_3(db, pos, 9);
+ * islet_del_value_3(db, pos, 9);  // Cell now holds exactly {7}
+ * @endcode
+ *
+ * @see islet_del_1 islet_del_all_1 islet_cell_count_1
+ */
+uint32_t islet_del_value_1(uint32_t pdb_hd, int16_t *p, uint32_t thing);
+uint32_t islet_del_value_2(uint32_t pdb_hd, int16_t *p, uint32_t thing);
+uint32_t islet_del_value_3(uint32_t pdb_hd, int16_t *p, uint32_t thing);
+uint32_t islet_del_value_4(uint32_t pdb_hd, int16_t *p, uint32_t thing);
+
+/**
  * @brief Store a value at a spatial coordinate (append).
  *
  * Per-dimension variants (islet_put_1..4). Appends the value at the given
@@ -976,8 +1030,8 @@ int rec_axis_fill_bbox_4(uint32_t pdb_hd, int16_t *s,
 		uint16_t *l, rec_set_t *out);
 
 /*
- * rec_axis_open (RECALL-KERNEL.md "rec_axis_open convention", optional CLI-open convention,
- * not part of libqmap's core rec_query registry API): opens an islet
+ * rec_axis_open convention (RECALL-KERNEL.md "rec_axis_open convention", optional CLI-open
+ * convention, not part of libqmap's core rec_query registry API): opens an islet
  * store from an opaque "filename:database:mask" spec string (`:`-
  * separated; any/all fields may be empty for islet_open()'s NULL/0
  * defaults) and returns the ctx a caller then passes to
@@ -985,6 +1039,30 @@ int rec_axis_fill_bbox_4(uint32_t pdb_hd, int16_t *s,
  * uintptr_t).
  */
 void *rec_axis_open(const char *spec);
+
+/*
+ * rec_axis_store / rec_axis_unstore / rec_axis_readback (phase-2A store
+ * contract, RECALL-KERNEL.md "rec_axis_store convention", optional
+ * CLI-specific — not libqmap core API). The consumer passes (ref, value)
+ * blindly — one opaque string, never split; each axis parses the whole
+ * string in its own grammar.
+ *
+ * Grammar: a point list "x,y[,z];x2,y2" (`;`-separated points,
+ * `,`-separated int16 coords; dim = first point's coord count, 1..4;
+ * int16 lanes only). store is replace-in-place (parse-first, then
+ * unstore-then-put, in-call dups deduped; over ISLET_AXIS_MAX_POINTS →
+ * ERANGE, else EINVAL). Cells are recorded in the rev manifest (the
+ * grid's own single-map <fname>.ridx sidecar, opened by rec_axis_open for
+ * non-empty fname; in-memory rev otherwise) — unstore walks it backwards,
+ * O(cells-of-ref), never a scan; readback is the ref's cells NUL-joined
+ * in the store grammar (round-trippable). Different refs may share a
+ * cell; del_value removes only the target. ctx == NULL → -1.
+ */
+int rec_axis_store(void *ctx, const char *spec, rec_ref_t ref,
+		const char *value);
+int rec_axis_unstore(void *ctx, rec_ref_t ref);
+int rec_axis_readback(void *ctx, rec_ref_t ref, char **blob_out,
+		size_t *n_out);
 
 /**
  * @brief 2D x 32-bit box fill. Same contract as

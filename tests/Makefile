@@ -201,6 +201,7 @@ clean:
 	@rm -f *.gcda *.gcno *.gcov coverage.info
 	@rm -rf coverage_html
 	@rm -f /tmp/test_islet_*.db
+	@rm -f /tmp/test_islet_*.db.ridx
 
 # Help
 help:
