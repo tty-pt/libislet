@@ -1503,6 +1503,25 @@ morton_get_bulk4(int16_t points[][4], const uint64_t *codes, uint32_t n)
 
 /* ---- rec_query axis registration (islet / space) ---- */
 
+/* D14 axis-contributed CLI options (first CLI surface for islet): the
+ * qmap CLI broadcasts inline `--dim=…` / `--s=…` / `--l=…` to every
+ * bound axis declaring them. Names mirror the decode keys 1:1 (scoped
+ * synth `--dim@A` depends on it). Leaf specs win over this (spec > CLI).
+ * The option struct mirrors libqmap's local layout; the two are never
+ * compiled together. */
+struct rec_axis_cli_option {
+	const char *name;
+	int has_arg;
+	const char *help;
+};
+
+static struct islet_cli_cfg {
+	char *s;
+	char *l;
+	int dim;
+	int dim_set;
+} islet_cli_cfg;
+
 struct rec_islet_params {
 	int16_t  s[4];
 	uint16_t l[4];
@@ -1525,22 +1544,25 @@ static int islet_fill(void *ctx, void *params, rec_set_t *out)
  * decode fns). `dim` (1..4) is required; `s` and `l` must each list
  * exactly `dim` comma-separated integers. NULL on malformed/missing
  * fields or OOM.
+ *
+ * D14 CLI merge: broadcast `--dim/--s/--l` (rec_axis_config_arg, the
+ * plugin's first CLI surface) fill what the leaf omits (leaf wins, spec >
+ * CLI). All three must still resolve or decode NULLs (loud, existing).
  */
 static void *islet_decode(const char *str)
 {
 	struct rec_islet_params *p;
-	char *buf, *cur;
+	char *buf = NULL, *cur = NULL;
 	const char *sval = NULL, *lval = NULL;
-	int dim = 0;
+	int dim = 0, has_dim = 0, has_s = 0, has_l = 0;
 
-	if (!str)
-		return NULL;
-	buf = malloc(strlen(str) + 1);
-	if (!buf)
-		return NULL;
-	strcpy(buf, str);
-	cur = buf;
-	while (*cur) {
+	if (str && *str) {
+		buf = malloc(strlen(str) + 1);
+		if (!buf)
+			return NULL;
+		strcpy(buf, str);
+		cur = buf;
+		while (*cur) {
 		char *key, *val;
 
 		while (*cur == ' ')
@@ -1561,13 +1583,26 @@ static void *islet_decode(const char *str)
 			cur++;
 		if (*cur)
 			*cur++ = '\0';
-		if (!strcmp(key, "dim"))
+		if (!strcmp(key, "dim")) {
+			has_dim = 1;
 			dim = atoi(val);
-		else if (!strcmp(key, "s"))
+		}
+		else if (!strcmp(key, "s")) {
+			has_s = 1;
 			sval = val;
-		else if (!strcmp(key, "l"))
+		}
+		else if (!strcmp(key, "l")) {
+			has_l = 1;
 			lval = val;
+		}
 	}
+	}
+	if (!has_dim && islet_cli_cfg.dim_set)
+		dim = islet_cli_cfg.dim;
+	if (!has_s && islet_cli_cfg.s)
+		sval = islet_cli_cfg.s;
+	if (!has_l && islet_cli_cfg.l)
+		lval = islet_cli_cfg.l;
 	if (dim < 1 || dim > 4 || !sval || !lval) {
 		free(buf);
 		return NULL;
@@ -1625,6 +1660,56 @@ static void *islet_decode(const char *str)
 
 	free(buf);
 	return p;
+}
+
+const struct rec_axis_cli_option *
+rec_axis_cli_options(void)
+{
+	static const struct rec_axis_cli_option opts[] = {
+		{ "dim", 1, "dimensionality (1..4)" },
+		{ "s",   1, "side comma-int list (dim entries)" },
+		{ "l",   1, "lattice comma-int list (dim entries)" },
+		{ NULL, 0, NULL }
+	};
+	return opts;
+}
+
+int
+rec_axis_config_arg(const char *name, const char *value)
+{
+	char *copy;
+	char *end;
+	long v;
+
+	if (!name)
+		return -1;
+	if (!strcmp(name, "dim")) {
+		if (!value || !*value)
+			return -1;
+		errno = 0;
+		v = strtol(value, &end, 10);
+		if (errno || end == value || *end != '\0' || v < 1 || v > 4)
+			return -1;
+		islet_cli_cfg.dim = (int)v;
+		islet_cli_cfg.dim_set = 1;
+		return 0;
+	}
+	if (!strcmp(name, "s") || !strcmp(name, "l")) {
+		if (!value || !*value)
+			return -1;
+		copy = strdup(value);
+		if (!copy)
+			return -1;
+		if (!strcmp(name, "s")) {
+			free(islet_cli_cfg.s);
+			islet_cli_cfg.s = copy;
+		} else {
+			free(islet_cli_cfg.l);
+			islet_cli_cfg.l = copy;
+		}
+		return 0;
+	}
+	return -1;
 }
 
 /* =====================================================================

@@ -11,6 +11,16 @@
 #include <ttypt/rec.h>
 #include <string.h>
 
+/* D14 axis-contributed CLI surface (dlsym'd; not in any header — mirror
+ * libislet.c's local layout, they are never compiled together). */
+struct rec_axis_cli_option {
+	const char *name;
+	int has_arg;
+	const char *help;
+};
+extern const struct rec_axis_cli_option *rec_axis_cli_options(void);
+extern int rec_axis_config_arg(const char *name, const char *value);
+
 static void setup_once(void) {
     static int initialized = 0;
     if (!initialized) {
@@ -200,6 +210,56 @@ TEST(axis_open_empty_spec_defaults) {
     rec_set_free(out);
 }
 
+/* Declared surface + config_arg validation + decode CLI merge (leaf wins,
+ * all three fields still required). Runs LAST: the CLI state it sets is
+ * process-global and would disturb the NULL-asserts above, so it must
+ * never precede axis_decode_bad_dim. A bare NULL spec (post-flip bare
+ * `islet` leaf) resolves from --dim/--s/--l alone. */
+TEST(axis_cli_config) {
+    setup_once();
+    int slot = find_islet_slot();
+    ASSERT(slot >= 0);
+
+    const struct rec_axis_cli_option *o = rec_axis_cli_options();
+    int n = 0;
+    while (o && o[n].name)
+        n++;
+    ASSERT_EQ(n, 3);
+    ASSERT(!strcmp(o[0].name, "dim") && o[0].has_arg == 1);
+    ASSERT(!strcmp(o[1].name, "s") && o[1].has_arg == 1);
+    ASSERT(!strcmp(o[2].name, "l") && o[2].has_arg == 1);
+
+    ASSERT_EQ(rec_axis_config_arg(NULL, "x"), -1);
+    ASSERT_EQ(rec_axis_config_arg("dim", NULL), -1);
+    ASSERT_EQ(rec_axis_config_arg("dim", "0"), -1);
+    ASSERT_EQ(rec_axis_config_arg("dim", "5"), -1);
+    ASSERT_EQ(rec_axis_config_arg("dim", "abc"), -1);
+    ASSERT_EQ(rec_axis_config_arg("s", NULL), -1);
+    ASSERT_EQ(rec_axis_config_arg("s", ""), -1);
+    ASSERT_EQ(rec_axis_config_arg("l", NULL), -1);
+    ASSERT_EQ(rec_axis_config_arg("l", ""), -1);
+    ASSERT_EQ(rec_axis_config_arg("x", "1"), -1);
+
+    /* no CLI config yet: bare NULL spec stays NULL (loud fill failure).
+     * Use axis->decode directly: rec_axis_decode() guards !s and never
+     * delivers NULL to the plugin (the post-flip bare-leaf call goes
+     * straight to axis->decode, as in qmap.c). */
+    const rec_axis_t *axis = rec_axis_get(slot);
+    ASSERT_NOT_NULL(axis);
+    ASSERT_NULL(axis->decode(NULL));
+
+    ASSERT_EQ(rec_axis_config_arg("dim", "2"), 0);
+    ASSERT_EQ(rec_axis_config_arg("s", "0,0"), 0);
+    ASSERT_EQ(rec_axis_config_arg("l", "16,16"), 0);
+
+    /* bare NULL spec now resolves entirely from CLI. */
+    ASSERT_NOT_NULL(axis->decode(NULL));
+
+    /* leaf keys still win over CLI; strict leaf validation unchanged. */
+    ASSERT_NOT_NULL(rec_axis_decode(slot, "dim=3 s=0,0,0 l=10,10,10"));
+    ASSERT_NULL(rec_axis_decode(slot, "dim=3 s=0 l=1,1,1"));
+}
+
 int main(void) {
     test_suite_begin("Islet rec_query Axis Registration Tests");
     RUN_TEST(axis_registered);
@@ -209,5 +269,6 @@ int main(void) {
     RUN_TEST(axis_fill_bad_dim_guard);
     RUN_TEST(axis_open_matches_direct_open);
     RUN_TEST(axis_open_empty_spec_defaults);
+    RUN_TEST(axis_cli_config);
     return test_suite_end();
 }

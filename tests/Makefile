@@ -4,6 +4,8 @@ CC = cc
 CFLAGS = -g -Wall -Wextra -Wno-unused-function -I../include
 LDFLAGS = -L../lib -L/usr/lib
 LDLIBS = -lislet -lqmap -lqsys -lxxhash
+# Fresh ../lib must win over any stale /lib/libislet.so shadow.
+export LD_LIBRARY_PATH := $(abspath ../lib):$(abspath ../../libqmap/lib):$(LD_LIBRARY_PATH)
 
 # Test directories
 UNIT_DIR = unit
