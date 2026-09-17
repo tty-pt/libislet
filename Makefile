@@ -1,6 +1,7 @@
 all := libislet
 LDLIBS-libislet := -lqsys -lqmap
 CFLAGS := -g
+CFLAGS += -I/home/quirinpa/site/external/libqmap/include
 
 -include ../mk/include.mk
 

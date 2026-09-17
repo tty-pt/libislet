@@ -11,13 +11,8 @@
 #include <ttypt/rec.h>
 #include <string.h>
 
-/* D14 axis-contributed CLI surface (dlsym'd; not in any header — mirror
- * libislet.c's local layout, they are never compiled together). */
-struct rec_axis_cli_option {
-	const char *name;
-	int has_arg;
-	const char *help;
-};
+/* D14 axis-contributed CLI surface (dlsym'd): the contract ABI is
+ * kernel-owned in <ttypt/rec.h>. */
 extern const struct rec_axis_cli_option *rec_axis_cli_options(void);
 extern int rec_axis_config_arg(const char *name, const char *value);
 
@@ -137,6 +132,19 @@ TEST(axis_decode_bad_dim) {
     ASSERT_NULL(rec_axis_decode(slot, "dim=2 s=0,0"));
     ASSERT_NULL(rec_axis_decode(slot, "dim=3 s=0,0 l=1,1,1"));
     ASSERT_NULL(rec_axis_decode(-1, "dim=2 s=0,0 l=1,1"));
+}
+
+TEST(axis_decode_bare_tokens) {
+    setup_once();
+    int slot = find_islet_slot();
+    ASSERT(slot >= 0);
+
+    /* bare (=less) tokens are skipped; surrounding pairs still resolve */
+    ASSERT_NOT_NULL(rec_axis_decode(slot, "dim=2 junk s=0,0 l=1,1"));
+    ASSERT_NOT_NULL(rec_axis_decode(slot, "junk dim=2 s=0,0 l=1,1 junk"));
+    /* a spec of only bare tokens resolves nothing (CLI unset) → NULL */
+    ASSERT_NULL(rec_axis_decode(slot, "junk"));
+    ASSERT_NULL(rec_axis_decode(slot, "junk morejunk"));
 }
 
 TEST(axis_fill_bad_dim_guard) {
@@ -266,6 +274,7 @@ int main(void) {
     RUN_TEST(axis_fill_equiv_3d);
     RUN_TEST(axis_fill_equiv_2d);
     RUN_TEST(axis_decode_bad_dim);
+    RUN_TEST(axis_decode_bare_tokens);
     RUN_TEST(axis_fill_bad_dim_guard);
     RUN_TEST(axis_open_matches_direct_open);
     RUN_TEST(axis_open_empty_spec_defaults);
