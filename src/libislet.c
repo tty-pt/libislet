@@ -1534,104 +1534,103 @@ static int islet_fill(void *ctx, void *params, rec_set_t *out)
 
 /*
  * Decode "dim=N s=x,y,... l=dx,dy,..." into a heap-owned rec_islet_params.
- * The decode-spec grammar is kernel-owned (ttypt/rec.h rec_spec_next);
- * this buffer is freed before returning. `dim` (1..4) is required; `s` and
- * `l` must each list exactly `dim` comma-separated integers. NULL on
- * malformed/missing fields or OOM.
+ * The decode-spec grammar is kernel-owned (ttypt/rec.h rec_spec_scan) and
+ * is read-only: every value is parsed out of the caller's string with the
+ * bounded rec_cli_*_b parsers, so decode allocates NOTHING until the final
+ * params struct. `dim` (1..4) is required; `s` and `l` must each list
+ * exactly `dim` comma-separated integers. NULL on malformed/missing fields
+ * or OOM.
  *
  * D14 CLI merge: broadcast `--dim/--s/--l` (rec_axis_config_arg, the
  * plugin's first CLI surface) fill what the leaf omits (leaf wins, spec >
  * CLI). All three must still resolve or decode NULLs (loud, existing).
  */
+
+/* Parse `dim` comma-separated decimal integers [v, v_end) into `out`.
+ * Returns 0 on success, -1 on an empty lane, a missing/extra separator,
+ * non-integer junk, or an overlapping range. Values only need to fit
+ * `long` — the caller casts to its lane type exactly as before. */
+static int
+islet_parse_ints(const char *v, const char *v_end, int dim, long *out)
+{
+	const char *c = v;
+	int i;
+
+	for (i = 0; i < dim; i++) {
+		char *end;
+		long n;
+
+		if (c >= v_end)
+			return -1;
+		errno = 0;
+		n = strtol(c, &end, 10);
+		if (errno == ERANGE || end == c || end > v_end)
+			return -1;
+		out[i] = n;
+		if (i < dim - 1) {
+			if (end >= v_end || *end != ',')
+				return -1;
+			c = end + 1;
+		} else if (end != v_end) {
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static void *islet_decode(const char *str)
 {
 	struct rec_islet_params *p;
-	char *buf = NULL;
-	const char *sval = NULL, *lval = NULL;
+	const char *sval = NULL, *send = NULL;
+	const char *lval = NULL, *lend = NULL;
+	long sv[4], lv[4];
 	int dim = 0, has_dim = 0, has_s = 0, has_l = 0;
 
 	if (str && *str) {
-		buf = strdup(str);
-		if (!buf)
-			return NULL;
-		for (char *cur = buf, *key, *val;
-		     rec_spec_next(&cur, &key, &val); ) {
-			if (!val)
-				continue;
-			if (!strcmp(key, "dim")) {
-				has_dim = 1;
-				dim = atoi(val);
-			} else if (!strcmp(key, "s")) {
-				has_s = 1;
+		const char *cur = str, *key, *val;
+		size_t klen, vlen;
+
+		while (rec_spec_scan(&cur, &key, &klen, &val, &vlen, NULL)) {
+			if (rec_key_eq(key, klen, "dim")) {
+				if (rec_cli_int_b(val, val + vlen, &dim) == 0)
+					has_dim = 1;
+			} else if (rec_key_eq(key, klen, "s")) {
 				sval = val;
-			} else if (!strcmp(key, "l")) {
-				has_l = 1;
+				send = val + vlen;
+				has_s = 1;
+			} else if (rec_key_eq(key, klen, "l")) {
 				lval = val;
+				lend = val + vlen;
+				has_l = 1;
 			}
 		}
 	}
 	if (!has_dim && islet_cli_cfg.dim_set)
 		dim = islet_cli_cfg.dim;
-	if (!has_s && islet_cli_cfg.s)
+	if (!has_s && islet_cli_cfg.s) {
 		sval = islet_cli_cfg.s;
-	if (!has_l && islet_cli_cfg.l)
-		lval = islet_cli_cfg.l;
-	if (dim < 1 || dim > 4 || !sval || !lval) {
-		free(buf);
-		return NULL;
+		send = sval + strlen(sval);
 	}
+	if (!has_l && islet_cli_cfg.l) {
+		lval = islet_cli_cfg.l;
+		lend = lval + strlen(lval);
+	}
+	if (dim < 1 || dim > 4 || !sval || !lval)
+		return NULL;
 
 	p = calloc(1, sizeof(*p));
-	if (!p) {
-		free(buf);
+	if (!p)
+		return NULL;
+	p->dim = dim;
+	if (islet_parse_ints(sval, send, dim, sv) < 0 ||
+	    islet_parse_ints(lval, lend, dim, lv) < 0) {
+		free(p);
 		return NULL;
 	}
-	p->dim = dim;
-
-	{
-		const char *c = sval;
-		int i;
-
-		for (i = 0; i < dim; i++) {
-			if (!*c) {
-				free(p);
-				free(buf);
-				return NULL;
-			}
-			p->s[i] = (int16_t)strtol(c, (char **)&c, 10);
-			if (i < dim - 1) {
-				if (*c != ',') {
-					free(p);
-					free(buf);
-					return NULL;
-				}
-				c++;
-			}
-		}
+	for (int i = 0; i < dim; i++) {
+		p->s[i] = (int16_t)sv[i];
+		p->l[i] = (uint16_t)lv[i];
 	}
-	{
-		const char *c = lval;
-		int i;
-
-		for (i = 0; i < dim; i++) {
-			if (!*c) {
-				free(p);
-				free(buf);
-				return NULL;
-			}
-			p->l[i] = (uint16_t)strtol(c, (char **)&c, 10);
-			if (i < dim - 1) {
-				if (*c != ',') {
-					free(p);
-					free(buf);
-					return NULL;
-				}
-				c++;
-			}
-		}
-	}
-
-	free(buf);
 	return p;
 }
 
