@@ -6,7 +6,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +48,7 @@ static void process_operations(const uint8_t *data, size_t size) {
         /* Get and verify */
         uint32_t retrieved = islet_get_3(db, coords);
         
-        if (retrieved != val && retrieved != QM_MISS) {
+        if (retrieved != val && retrieved != CM_MISS) {
             fprintf(stderr, "Mismatch: put %u at (%d,%d,%d), got %u\n",
                 val, x, y, z, retrieved);
             abort();
@@ -96,7 +96,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         islet_put_3(db, coords, val);
         
         uint32_t retrieved = islet_get_3(db, coords);
-        if (retrieved != val && retrieved != QM_MISS) {
+        if (retrieved != val && retrieved != CM_MISS) {
             abort();
         }
     }

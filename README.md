@@ -10,7 +10,7 @@ A small library for spatial/geographic databases. Store and query data indexed b
 - **Fast Range Queries**: Query rectangular regions with O(log n + k) complexity
 - **Z-Interval Skip**: Box walks jump whole empty aligned cubes instead of decoding every key
 - **Kernel-Form Fill**: `Point3_2.fill_bbox()` streams a box straight into a sealed recall candidate set
-- **File Persistence**: Optional disk storage via libqmap
+- **File Persistence**: Optional disk storage via libcorm
 - **Flexible Dimensions**: Optimized for 3D, designed for N-dimensional support
 - **Simple C API**: Minimal, easy-to-use interface
 - **Sparse Data Efficient**: Only stores occupied coordinates
@@ -66,7 +66,7 @@ int main() {
 
 **Compile:**
 ```sh
-cc -o myapp myapp.c -lislet -lqmap -lqsys -lxxhash
+cc -o myapp myapp.c -lislet -lcorm -lqsys -lxxhash
 ```
 
 ## Installation
@@ -74,7 +74,7 @@ cc -o myapp myapp.c -lislet -lqmap -lqsys -lxxhash
 Check out [these instructions](https://github.com/tty-pt/ci/blob/main/docs/install.md#install-ttypt-packages) and use "libislet" as the package name.
 
 **Dependencies:**
-- libqmap >= 0.6.0
+- libcorm >= 0.6.0
 - libqsys
 - libxxhash
 
@@ -153,11 +153,11 @@ Man pages are generated from Doxygen comments in header files:
   the Z-interval skip jumps whole empty aligned cubes, so dense intervals
   decode far fewer entries than they span
 - **Sparse Data**: Only allocated coordinates consume memory
-- **Memory**: Inherits qmap overhead (~32 bytes/entry + key/value sizes)
+- **Memory**: Inherits corm overhead (~32 bytes/entry + key/value sizes)
 
 ## Thread Safety
 
-⚠️ **NOT thread-safe** - Inherits libqmap's global state limitations.
+⚠️ **NOT thread-safe** - Inherits libcorm's global state limitations.
 
 Use external synchronization (mutexes) if accessing from multiple threads.
 
@@ -166,7 +166,7 @@ Use external synchronization (mutexes) if accessing from multiple threads.
 File-backed databases (when filename is provided to `islet_open()`):
 - **Automatic Loading**: Data loads from disk on open
 - **Automatic Saving**: Data saves to disk at process exit
-- **Manual Save**: Call `qmap_save()` for mid-execution persistence
+- **Manual Save**: Call `corm_save()` for mid-execution persistence
 - **Multiple Databases**: Store multiple logical databases in one file
 
 Example:
@@ -177,7 +177,7 @@ uint32_t db = islet_open("world.db", "main", 0xFFFF);
 // ... modify data ...
 
 // Optional: save before exit
-qmap_save();
+corm_save();
 
 // Automatic: saves on process exit anyway
 ```
@@ -239,7 +239,7 @@ Low-level flat functions (ABI + tight-loop fast path, same behavior):
 the `islet_*_2_32()` 32-bit family, and the `islet_ops[1..4]` runtime-dim table.
 Use these directly in hot per-cell loops: the config objects add one
 indirect call per member (measured ~6.5x slower on a bare codec
-round-trip; see docs/PERF.md), while scatter DB ops are qmap-dominated
+round-trip; see docs/PERF.md), while scatter DB ops are corm-dominated
 and unaffected in practice.
 
 Coverage: `Point1_2..Point4_2` (int16, 1-4 dims) and `Point2_4` (int32,
@@ -287,10 +287,10 @@ rec_set_free(cands);
 ```
 
 Boxes larger than `ISLET_FILL_MAX_VOL` (1M cells) are rejected with `-1`.
-Requires libqmap >= 0.8.0 (multi-value chains + `rec.h`).
+Requires libcorm >= 0.8.0 (multi-value chains + `rec.h`).
 
 This follows the recall-kernel adapter contract
-(`docs/RECALL-KERNEL.md` in libqmap): one `int rec_axis_fill_*(params,
+(`docs/RECALL-KERNEL.md` in libcorm): one `int rec_axis_fill_*(params,
 rec_set_t *out)` that streams matches into the set and seals it, plain
 `int` return (0 ok / -1 error), additive — the standard
 `islet_iter`/`islet_next` cursor remains as the raw path (it replaced the
@@ -374,7 +374,7 @@ Issues and pull requests welcome. Please maintain code style and add tests for n
 
 ## See Also
 
-- **libqmap**: Underlying hash table and persistence layer
+- **libcorm**: Underlying hash table and persistence layer
 - **Morton Codes**: https://en.wikipedia.org/wiki/Z-order_curve
 - **Spatial Indexing**: Multi-dimensional range query paper referenced in source
 

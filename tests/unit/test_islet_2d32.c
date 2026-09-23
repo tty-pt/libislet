@@ -7,7 +7,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -182,7 +182,7 @@ TEST(get_multi_chain) {
     islet_put_2_32(db, p, 333);
 
     uint32_t cur = islet_get_multi_2_32(db, p);
-    ASSERT(cur != QM_MISS);
+    ASSERT(cur != CM_MISS);
     uint32_t v;
     ASSERT(islet_cell_next(&v, cur));
     ASSERT_EQ(v, 111);
@@ -193,7 +193,7 @@ TEST(get_multi_chain) {
     ASSERT(!islet_cell_next(&v, cur));
 
     int32_t empty[2] = { 0, 0 };
-    ASSERT_EQ(islet_get_multi_2_32(db, empty), QM_MISS);
+    ASSERT_EQ(islet_get_multi_2_32(db, empty), CM_MISS);
 }
 
 /* Iterator returns every stored pair; decoded points re-encode. */
@@ -251,8 +251,8 @@ static uint32_t *brute_collect32(uint32_t db, int32_t *s, int32_t *l,
     uint64_t rmin = morton_set_2_32(s);
     uint64_t rmax = morton_set_2_32(e);
 
-    uint32_t cur = qmap_iter(db, NULL, 0);
-    while (qmap_next(&key, &value, cur)) {
+    uint32_t cur = corm_iter(db, NULL, 0);
+    while (corm_next(&key, &value, cur)) {
         uint64_t code = *(uint64_t *)key;
 
         if (code < rmin || code > rmax)
@@ -269,7 +269,7 @@ static uint32_t *brute_collect32(uint32_t db, int32_t *s, int32_t *l,
         }
         vals[n++] = *(uint32_t *)value;
     }
-    qmap_fin(cur);
+    corm_fin(cur);
 
     *n_out = n;
     *interval_out = interval;

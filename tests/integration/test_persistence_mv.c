@@ -9,7 +9,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -36,8 +36,8 @@ TEST(mv_compat_unique_keys_reopen) {
         int16_t p[3] = {i, i * 2, i * 3};
         islet_put_3(db, p, 1000 + i);
     }
-    qmap_save();
-    qmap_close(db);
+    corm_save();
+    corm_close(db);
 
     db = islet_open(MV_F1, "compat", 1023);
 
@@ -49,7 +49,7 @@ TEST(mv_compat_unique_keys_reopen) {
         ASSERT_EQ(islet_cell_count_3(db, p), 1);
     }
     ASSERT_EQ(verified, 50);
-    qmap_close(db);
+    corm_close(db);
     unlink(MV_F1);
 }
 
@@ -65,8 +65,8 @@ TEST(mv_roundtrip_duplicates) {
     islet_put_3(db, a, 11);
     islet_put_3(db, a, 22);
     islet_put_3(db, b, 33);
-    qmap_save();
-    qmap_close(db);
+    corm_save();
+    corm_close(db);
 
     db = islet_open(MV_F2, "mvdata", 1023);
 
@@ -77,7 +77,7 @@ TEST(mv_roundtrip_duplicates) {
 
     /* chain path */
     uint32_t cur = islet_get_multi_3(db, a);
-    ASSERT(cur != QM_MISS);
+    ASSERT(cur != CM_MISS);
     uint32_t ref;
     ASSERT_EQ(islet_cell_next(&ref, cur), 1);
     ASSERT_EQ(ref, 11);
@@ -103,7 +103,7 @@ TEST(mv_roundtrip_duplicates) {
     ASSERT_EQ(n22, 1);
     ASSERT_EQ(n33, 1);
 
-    qmap_close(db);
+    corm_close(db);
     unlink(MV_F2);
 }
 

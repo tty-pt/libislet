@@ -348,7 +348,7 @@ TEST(del_value_native) {
     {
         uint32_t cur = islet_get_multi_3(db, p);
         uint32_t v;
-        ASSERT(cur != QM_MISS);
+        ASSERT(cur != CM_MISS);
         ASSERT(islet_cell_next(&v, cur));
         ASSERT_EQ(v, (uint32_t)7);
         ASSERT(islet_cell_next(&v, cur));
@@ -385,7 +385,7 @@ TEST(file_backed_sidecar) {
         ASSERT_NOT_NULL(ctx);
 
         ASSERT_EQ(rec_axis_store(ctx, NULL, 55, "12,34"), 0);
-        qmap_save();
+        corm_save();
 
         /* Both the grid and the rev sidecar hit the disk. */
         ASSERT(stat(grid, &st) == 0);

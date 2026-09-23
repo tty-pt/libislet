@@ -7,17 +7,17 @@
  *
  * Islet provides efficient spatial database operations using Morton codes
  * (Z-order space-filling curves) for multi-dimensional coordinate indexing.
- * Built on top of libqmap for persistence and hash table operations.
+ * Built on top of libcorm for persistence and hash table operations.
  *
  * Coordinates are signed 16-bit integers (int16_t) ranging from -32768 to 32767,
  * suitable for game worlds, voxel engines, and spatial simulations.
  *
- * @note Depends on libqmap >= 0.8.0 (per-key multi-value chains,
- *       qmap_get_multi, rec.h) and libqsys.
+ * @note Depends on libcorm >= 0.8.0 (per-key multi-value chains,
+ *       corm_get_multi, rec.h) and libqsys.
  */
 
 #include <stdint.h>
-#include <ttypt/qmap.h>
+#include <ttypt/corm.h>
 #include <ttypt/rec.h>
 
 /* Optimization tunable — a 0/1 flag. ISLET_SIMD_MORTON gates the batch
@@ -41,7 +41,7 @@
  *  Morton codes (Z-order) for efficient spatial queries and storage.
  *
  *  Value Semantics (multi-value cells):
- *  - A grid cell may hold MULTIPLE values (QM_MULTIVALUE map). islet_put_N()
+ *  - A grid cell may hold MULTIPLE values (CM_MULTIVALUE map). islet_put_N()
  *    appends; islet_get_N() returns the first value; islet_get_multi_N()
  *    iterates all values in insertion order; islet_del_N() removes the
  *    first value; islet_del_all_N() removes every value; islet_set_N()
@@ -73,13 +73,13 @@
  *        config as static-method structs. This header's flat functions
  *        remain the ABI and the tight-loop fast path.
  *
- *  @note Thread Safety: Islet inherits libqmap's thread-safety properties.
+ *  @note Thread Safety: Islet inherits libcorm's thread-safety properties.
  *        It uses global state and is NOT thread-safe. Use external
  *        synchronization if accessing from multiple threads.
  *
  *  @note Capacity: The mask parameter sizes the initial hash table
  *        (capacity = mask + 1). The map AUTO-GROWS by doubling when it
- *        fills (inherited from libqmap; libislet never passes QM_NOGROW),
+ *        fills (inherited from libcorm; libislet never passes CM_NOGROW),
  *        so exceeding the initial capacity is safe. Choose a mask near
  *        your expected entry count to avoid early regrows.
  *
@@ -100,7 +100,7 @@
  *        islet_put_N()/islet_get_N().
  *
  *  @warning File Persistence: File-backed databases are automatically saved
- *           at process exit via libqmap. Explicit qmap_save() calls are only
+ *           at process exit via libcorm. Explicit corm_save() calls are only
  *           needed for mid-execution checkpointing.
  *
  *  @see islet_morton
@@ -134,7 +134,7 @@
 /**
  * @brief Initialize the islet subsystem.
  *
- * Registers custom types with libqmap (uint64_t for Morton codes, uint32_t
+ * Registers custom types with libcorm (uint64_t for Morton codes, uint32_t
  * for values) and sets up the Morton code comparator for sorted iteration.
  * Also initializes the internal IDM (ID Manager) for iterator handles.
  *
@@ -142,7 +142,7 @@
  *          functions without initialization results in undefined behavior.
  *
  * @note This function can be called multiple times safely (idempotent if
- *       qmap types are already registered).
+ *       corm types are already registered).
  *
  * Example:
  * @code
@@ -161,7 +161,7 @@ void islet_init(void);
 /**
  * @brief Open or create a spatial database.
  *
- * Creates a spatial map backed by libqmap with QM_SORTED for efficient
+ * Creates a spatial map backed by libcorm with CM_SORTED for efficient
  * range queries. Internally uses Morton codes (uint64_t) as keys and
  * uint32_t for values. If a filename is provided, data is automatically
  * loaded from disk if the file exists.
@@ -181,13 +181,13 @@ void islet_init(void);
  *
  * @note File Persistence: File-backed databases automatically load existing
  *       data when opened. Data is automatically saved at process exit via
- *       libqmap's destructor. Call qmap_save() explicitly only if you need
+ *       libcorm's destructor. Call corm_save() explicitly only if you need
  *       mid-execution checkpointing.
  *
  * @note Capacity: The mask sizes the initial table; the map auto-grows
  *       by doubling when it fills. Nothing terminates on growth.
  *
- * @note The database is created with QM_SORTED | QM_MULTIVALUE: ordered
+ * @note The database is created with CM_SORTED | CM_MULTIVALUE: ordered
  *       iteration by Morton code for efficient spatial range queries,
  *       with multi-value cells (see the Value Semantics note above).
  *
@@ -207,9 +207,9 @@ void islet_init(void);
  * @endcode
  *
  * @see islet_init
- * @see qmap_open
- * @see qmap_save
- * @see qmap_close
+ * @see corm_open
+ * @see corm_save
+ * @see corm_close
  */
 uint32_t islet_open(char *filename, char *database, uint32_t mask);
 
@@ -348,7 +348,7 @@ int islet_next32(int32_t *p, uint32_t *ref, uint32_t cur);
  * Per-dimension variants (islet_del_1..4); the function name carries the
  * dimension count. Removes the first value stored at the given point
  * from the database. Internally converts the coordinate to a Morton
- * code and calls qmap_del(). If no entry exists at the coordinate, this
+ * code and calls corm_del(). If no entry exists at the coordinate, this
  * is a no-op (safe to call). When several values share the cell, only
  * the earliest-inserted one is removed; use islet_del_all_3() to clear
  * the cell.
@@ -370,13 +370,13 @@ int islet_next32(int32_t *p, uint32_t *ref, uint32_t cur);
  *
  * @see islet_get_3
  * @see islet_put_3
- * @see qmap_del
+ * @see corm_del
  */
 static inline void
 islet_del_1(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_1(p);
-	qmap_del(pdb_hd, &at);
+	corm_del(pdb_hd, &at);
 }
 
 /**
@@ -386,7 +386,7 @@ static inline void
 islet_del_2(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_2(p);
-	qmap_del(pdb_hd, &at);
+	corm_del(pdb_hd, &at);
 }
 
 /**
@@ -396,7 +396,7 @@ static inline void
 islet_del_3(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_3(p);
-	qmap_del(pdb_hd, &at);
+	corm_del(pdb_hd, &at);
 }
 
 /**
@@ -406,7 +406,7 @@ static inline void
 islet_del_4(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_4(p);
-	qmap_del(pdb_hd, &at);
+	corm_del(pdb_hd, &at);
 }
 
 /**
@@ -416,7 +416,7 @@ static inline void
 islet_del_2_32(uint32_t pdb_hd, int32_t *p)
 {
 	uint64_t at = morton_set_2_32(p);
-	qmap_del(pdb_hd, &at);
+	corm_del(pdb_hd, &at);
 }
 
 /**
@@ -424,7 +424,7 @@ islet_del_2_32(uint32_t pdb_hd, int32_t *p)
  *
  * Per-dimension variants (islet_del_all_1..4). Removes all values stored
  * at the given point from the database. Internally converts the
- * coordinate to a Morton code and calls qmap_del_all(). If no entry
+ * coordinate to a Morton code and calls corm_del_all(). If no entry
  * exists at the coordinate, this is a no-op (safe to call, returns 0).
  *
  * @param[in] pdb_hd Database handle from islet_open().
@@ -441,16 +441,16 @@ islet_del_2_32(uint32_t pdb_hd, int32_t *p)
  *
  * @see islet_del_3
  * @see islet_set_3
- * @see qmap_del_all
+ * @see corm_del_all
  */
 static inline uint32_t
 islet_del_all_1(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_1(p);
-	uint32_t n = qmap_count(pdb_hd, &at);
+	uint32_t n = corm_count(pdb_hd, &at);
 
 	if (n)
-		qmap_del_all(pdb_hd, &at);
+		corm_del_all(pdb_hd, &at);
 
 	return n;
 }
@@ -462,10 +462,10 @@ static inline uint32_t
 islet_del_all_2(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_2(p);
-	uint32_t n = qmap_count(pdb_hd, &at);
+	uint32_t n = corm_count(pdb_hd, &at);
 
 	if (n)
-		qmap_del_all(pdb_hd, &at);
+		corm_del_all(pdb_hd, &at);
 
 	return n;
 }
@@ -477,10 +477,10 @@ static inline uint32_t
 islet_del_all_3(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_3(p);
-	uint32_t n = qmap_count(pdb_hd, &at);
+	uint32_t n = corm_count(pdb_hd, &at);
 
 	if (n)
-		qmap_del_all(pdb_hd, &at);
+		corm_del_all(pdb_hd, &at);
 
 	return n;
 }
@@ -492,10 +492,10 @@ static inline uint32_t
 islet_del_all_4(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_4(p);
-	uint32_t n = qmap_count(pdb_hd, &at);
+	uint32_t n = corm_count(pdb_hd, &at);
 
 	if (n)
-		qmap_del_all(pdb_hd, &at);
+		corm_del_all(pdb_hd, &at);
 
 	return n;
 }
@@ -508,10 +508,10 @@ static inline uint32_t
 islet_del_all_2_32(uint32_t pdb_hd, int32_t *p)
 {
 	uint64_t at = morton_set_2_32(p);
-	uint32_t n = qmap_count(pdb_hd, &at);
+	uint32_t n = corm_count(pdb_hd, &at);
 
 	if (n)
-		qmap_del_all(pdb_hd, &at);
+		corm_del_all(pdb_hd, &at);
 
 	return n;
 }
@@ -527,7 +527,7 @@ uint32_t islet_del_value_2_32(uint32_t pdb_hd, int32_t *p, uint32_t thing);
  *
  * Per-dimension variants (islet_get_1..4). Looks up the value at the given
  * point in the database. Internally converts the coordinate to a Morton
- * code and calls qmap_get().
+ * code and calls corm_get().
  *
  * @param[in] pdb_hd Database handle from islet_open().
  * @param[in] p      Point coordinate. Array of int16_t with at least the
@@ -539,10 +539,10 @@ uint32_t islet_del_value_2_32(uint32_t pdb_hd, int32_t *p, uint32_t thing);
  *         values share the cell, the earliest-inserted one is returned;
  *         use islet_get_multi_3() to retrieve them all.
  *
- * @note ISLET_MISS equals UINT32_MAX (0xFFFFFFFF), the same as QM_MISS.
+ * @note ISLET_MISS equals UINT32_MAX (0xFFFFFFFF), the same as CM_MISS.
  *       This is the standard sentinel value for missing entries.
  *
- * @note The returned value is a copy, not a pointer. Unlike qmap_get()
+ * @note The returned value is a copy, not a pointer. Unlike corm_get()
  *       which returns a pointer, islet_get_3() returns the actual uint32_t
  *       value.
  *
@@ -560,13 +560,13 @@ uint32_t islet_del_value_2_32(uint32_t pdb_hd, int32_t *p, uint32_t thing);
  * @see islet_put_3
  * @see islet_del_3
  * @see ISLET_MISS
- * @see qmap_get
+ * @see corm_get
  */
 static inline uint32_t
 islet_get_1(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_1(p);
-	const void *ref = qmap_get(pdb_hd, &at);
+	const void *ref = corm_get(pdb_hd, &at);
 
 	if (ref)
 		return * (uint32_t *) ref;
@@ -581,7 +581,7 @@ static inline uint32_t
 islet_get_2(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_2(p);
-	const void *ref = qmap_get(pdb_hd, &at);
+	const void *ref = corm_get(pdb_hd, &at);
 
 	if (ref)
 		return * (uint32_t *) ref;
@@ -596,7 +596,7 @@ static inline uint32_t
 islet_get_3(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_3(p);
-	const void *ref = qmap_get(pdb_hd, &at);
+	const void *ref = corm_get(pdb_hd, &at);
 
 	if (ref)
 		return * (uint32_t *) ref;
@@ -611,7 +611,7 @@ static inline uint32_t
 islet_get_4(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_4(p);
-	const void *ref = qmap_get(pdb_hd, &at);
+	const void *ref = corm_get(pdb_hd, &at);
 
 	if (ref)
 		return * (uint32_t *) ref;
@@ -626,7 +626,7 @@ static inline uint32_t
 islet_get_2_32(uint32_t pdb_hd, int32_t *p)
 {
 	uint64_t at = morton_set_2_32(p);
-	const void *ref = qmap_get(pdb_hd, &at);
+	const void *ref = corm_get(pdb_hd, &at);
 
 	if (ref)
 		return * (uint32_t *) ref;
@@ -645,14 +645,14 @@ islet_get_2_32(uint32_t pdb_hd, int32_t *p)
  *
  * @see islet_get_1 islet_get_2 islet_get_3 islet_get_4
  * @see islet_get_multi_1 islet_get_multi_2 islet_get_multi_3 islet_get_multi_4
- * @see qmap_count
+ * @see corm_count
  */
 static inline uint32_t
 islet_cell_count_1(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_1(p);
 
-	return qmap_count(pdb_hd, &at);
+	return corm_count(pdb_hd, &at);
 }
 
 /**
@@ -663,7 +663,7 @@ islet_cell_count_2(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_2(p);
 
-	return qmap_count(pdb_hd, &at);
+	return corm_count(pdb_hd, &at);
 }
 
 /**
@@ -674,7 +674,7 @@ islet_cell_count_3(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_3(p);
 
-	return qmap_count(pdb_hd, &at);
+	return corm_count(pdb_hd, &at);
 }
 
 /**
@@ -685,7 +685,7 @@ islet_cell_count_4(uint32_t pdb_hd, int16_t *p)
 {
 	uint64_t at = morton_set_4(p);
 
-	return qmap_count(pdb_hd, &at);
+	return corm_count(pdb_hd, &at);
 }
 
 /**
@@ -697,7 +697,7 @@ islet_cell_count_2_32(uint32_t pdb_hd, int32_t *p)
 {
 	uint64_t at = morton_set_2_32(p);
 
-	return qmap_count(pdb_hd, &at);
+	return corm_count(pdb_hd, &at);
 }
 
 /**
@@ -724,14 +724,14 @@ uint32_t islet_last_scan_count(void);
  *
  * @note Per-dimension variants islet_get_multi_1..4.
  *
- * @return Iterator handle for use with islet_cell_next(), or QM_MISS when
+ * @return Iterator handle for use with islet_cell_next(), or CM_MISS when
  *         the cell holds no values.
  *
  * Example:
  * @code
  * int16_t pos[3] = {10, 20, 30};
  * uint32_t cur = islet_get_multi_3(db, pos);
- * if (cur != QM_MISS) {
+ * if (cur != CM_MISS) {
  *     uint32_t value;
  *     while (islet_cell_next(&value, cur))
  *         printf("value %u\n", value);
@@ -816,7 +816,7 @@ uint32_t islet_del_value_4(uint32_t pdb_hd, int16_t *p, uint32_t thing);
  *
  * Per-dimension variants (islet_put_1..4). Appends the value at the given
  * point in the database. Internally converts the coordinate to a Morton
- * code and calls qmap_put(). If entries already exist at this coordinate,
+ * code and calls corm_put(). If entries already exist at this coordinate,
  * the new value is ADDED alongside them (multi-value cell) - nothing is
  * replaced. Use islet_set_N() for replace semantics, islet_get_multi_N()
  * to read all values back.
@@ -826,11 +826,11 @@ uint32_t islet_del_value_4(uint32_t pdb_hd, int16_t *p, uint32_t thing);
  *                   dimension count of the function used. Coordinates are
  *                   signed 16-bit integers ranging from -32768 to 32767.
  * @param[in] thing  Value to store (uint32_t). Can be any 32-bit value
- *                   including 0. Avoid using QM_MISS (0xFFFFFFFF) as it
+ *                   including 0. Avoid using CM_MISS (0xFFFFFFFF) as it
  *                   may cause confusion, though it's technically valid.
  *
  * @note If the database is file-backed (filename provided to islet_open()),
- *       changes are automatically saved at process exit. Call qmap_save()
+ *       changes are automatically saved at process exit. Call corm_save()
  *       explicitly for mid-execution persistence.
  *
  * Example (store single value):
@@ -860,14 +860,14 @@ uint32_t islet_del_value_4(uint32_t pdb_hd, int16_t *p, uint32_t thing);
  *
  * @see islet_get_3
  * @see islet_del_3
- * @see qmap_put
- * @see qmap_save
+ * @see corm_put
+ * @see corm_save
  */
 static inline void
 islet_put_1(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_1(p);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -877,7 +877,7 @@ static inline void
 islet_put_2(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_2(p);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -887,7 +887,7 @@ static inline void
 islet_put_3(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_3(p);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -897,7 +897,7 @@ static inline void
 islet_put_4(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_4(p);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -907,7 +907,7 @@ static inline void
 islet_put_2_32(uint32_t pdb_hd, int32_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_2_32(p);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -938,8 +938,8 @@ static inline void
 islet_set_1(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_1(p);
-	qmap_del_all(pdb_hd, &code);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_del_all(pdb_hd, &code);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -949,8 +949,8 @@ static inline void
 islet_set_2(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_2(p);
-	qmap_del_all(pdb_hd, &code);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_del_all(pdb_hd, &code);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -960,8 +960,8 @@ static inline void
 islet_set_3(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_3(p);
-	qmap_del_all(pdb_hd, &code);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_del_all(pdb_hd, &code);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -971,8 +971,8 @@ static inline void
 islet_set_4(uint32_t pdb_hd, int16_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_4(p);
-	qmap_del_all(pdb_hd, &code);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_del_all(pdb_hd, &code);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -982,8 +982,8 @@ static inline void
 islet_set_2_32(uint32_t pdb_hd, int32_t *p, uint32_t thing)
 {
 	uint64_t code = morton_set_2_32(p);
-	qmap_del_all(pdb_hd, &code);
-	qmap_put(pdb_hd, &code, &thing);
+	corm_del_all(pdb_hd, &code);
+	corm_put(pdb_hd, &code, &thing);
 }
 
 /**
@@ -1031,7 +1031,7 @@ int rec_axis_fill_bbox_4(uint32_t pdb_hd, int16_t *s,
 
 /*
  * rec_axis_open convention (RECALL-KERNEL.md "rec_axis_open convention", optional CLI-open
- * convention, not part of libqmap's core rec_query registry API): opens an islet
+ * convention, not part of libcorm's core rec_query registry API): opens an islet
  * store from an opaque "filename:database:mask" spec string (`:`-
  * separated; any/all fields may be empty for islet_open()'s NULL/0
  * defaults) and returns the ctx a caller then passes to
@@ -1043,7 +1043,7 @@ void *rec_axis_open(const char *spec);
 /*
  * rec_axis_store / rec_axis_unstore / rec_axis_readback (phase-2A store
  * contract, RECALL-KERNEL.md "rec_axis_store convention", optional
- * CLI-specific — not libqmap core API). The consumer passes (ref, value)
+ * CLI-specific — not libcorm core API). The consumer passes (ref, value)
  * blindly — one opaque string, never split; each axis parses the whole
  * string in its own grammar.
  *

@@ -164,7 +164,7 @@ noise. Honest verdict: **monomorphization measures parity on this VM**
 (all medians within ±6%, round spreads ±25–50%). Expected: the removed
 dim branches were perfectly predicted (same direction every
 iteration), so deleting them saves only a few µops per key against
-`qmap_next`/decode costs. Kept anyway: zero regression, no
+`corm_next`/decode costs. Kept anyway: zero regression, no
 per-iteration dispatch left (the structural goal), one macro source,
 and ~19KB extra `.text` (`.so` text 8.6KB → 27.4KB). Re-measure on
 quiet bare metal before claiming more.
@@ -197,7 +197,7 @@ member) vs the flat `static inline` legs:
 | Morton Round-Trip (Point3_2) | ~13 M ops/sec |
 
 The ~6.5x bare-loop gap is pure dispatch overhead. It only matters for
-tight codec/vector loops — scatter DB ops are qmap-dominated, and the
+tight codec/vector loops — scatter DB ops are corm-dominated, and the
 walker never goes through the objects — so the flat inlines stay as the
 documented fast path and `test_pointcfg` cross-checks every struct
 member against them.
@@ -300,7 +300,7 @@ make bench
 # BMI2 paired bench row (bench_morton) and bulk decode bench need the
 # flags at bench compile time, e.g.:
 cc -O3 -mbmi2 -Iinclude tests/benchmark/bench_morton.c -o /tmp/bm \
-    -Llib -lislet -lqmap -lqsys -lxxhash && LD_LIBRARY_PATH=lib /tmp/bm
+    -Llib -lislet -lcorm -lqsys -lxxhash && LD_LIBRARY_PATH=lib /tmp/bm
 # sanitizers
 make -C tests asan && make -C tests test-unit
 make -C tests ubsan && make -C tests test-unit

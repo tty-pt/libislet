@@ -7,7 +7,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -86,7 +86,7 @@ TEST(capacity_repeated_operations) {
         ASSERT_EQ(islet_cell_count_3(db, coords), 1);
 
         ASSERT_EQ(islet_del_all_3(db, coords), 1);
-        ASSERT_EQ(islet_get_3(db, coords), QM_MISS);
+        ASSERT_EQ(islet_get_3(db, coords), CM_MISS);
     }
 }
 

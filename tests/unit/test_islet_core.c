@@ -121,7 +121,7 @@ TEST(islet_del_existing) {
     ASSERT_EQ(islet_get_3(db, pos), 42);
     
     islet_del_3(db, pos);
-    ASSERT_EQ(islet_get_3(db, pos), QM_MISS);
+    ASSERT_EQ(islet_get_3(db, pos), CM_MISS);
 }
 
 TEST(islet_del_nonexistent) {

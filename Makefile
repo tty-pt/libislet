@@ -1,7 +1,7 @@
 all := libislet
-LDLIBS-libislet := -lqsys -lqmap
+LDLIBS-libislet := -lqsys -lcorm
 CFLAGS := -g
-CFLAGS += -I/home/quirinpa/site/external/libqmap/include
+CFLAGS += -I/home/quirinpa/site/external/libcorm/include
 
 -include ../mk/include.mk
 

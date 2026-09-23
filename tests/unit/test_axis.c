@@ -203,7 +203,7 @@ TEST(axis_open_empty_spec_defaults) {
     setup_once();
 
     /* empty spec -> filename=NULL, database=NULL, mask=0 (in-memory,
-     * qmap-default mask) -- must not crash and must return a usable
+     * corm-default mask) -- must not crash and must return a usable
      * handle. */
     void *ctx = rec_axis_open("");
     uint32_t db = (uint32_t)(uintptr_t)ctx;
@@ -251,7 +251,7 @@ TEST(axis_cli_config) {
     /* no CLI config yet: bare NULL spec stays NULL (loud fill failure).
      * Use axis->decode directly: rec_axis_decode() guards !s and never
      * delivers NULL to the plugin (the post-flip bare-leaf call goes
-     * straight to axis->decode, as in qmap.c). */
+     * straight to axis->decode, as in corm.c). */
     const rec_axis_t *axis = rec_axis_get(slot);
     ASSERT_NOT_NULL(axis);
     ASSERT_NULL(axis->decode(NULL));

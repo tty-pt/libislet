@@ -2,7 +2,7 @@
  * @file test_islet_mv.c
  * @brief Unit tests for multi-value cells (kernel-form scope B).
  *
- * Contract under QM_SORTED|QM_MULTIVALUE:
+ * Contract under CM_SORTED|CM_MULTIVALUE:
  * - islet_put APPENDS a duplicate at the cell (insertion order preserved).
  * - islet_get returns the FIRST value; ISLET_MISS when the cell is empty.
  * - islet_get_multi / islet_cell_next iterate ALL values at the cell.
@@ -52,7 +52,7 @@ TEST(mv_get_multi_yields_all) {
     ASSERT_EQ(islet_cell_count_3(db, pos), 3);
 
     uint32_t cur = islet_get_multi_3(db, pos);
-    ASSERT(cur != QM_MISS);
+    ASSERT(cur != CM_MISS);
 
     uint32_t ref;
     ASSERT_EQ(islet_cell_next(&ref, cur), 1);
@@ -71,7 +71,7 @@ TEST(mv_get_multi_empty_misses) {
 
     int16_t pos[3] = {7, 7, 7};
     ASSERT_EQ(islet_cell_count_3(db, pos), 0);
-    ASSERT_EQ(islet_get_multi_3(db, pos), QM_MISS);
+    ASSERT_EQ(islet_get_multi_3(db, pos), CM_MISS);
     ASSERT_EQ(islet_get_3(db, pos), ISLET_MISS);
 }
 

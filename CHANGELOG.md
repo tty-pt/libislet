@@ -86,7 +86,7 @@
   documented (all dims share the uint64 keyspace)
 
 ## [0.5.0] - 2026-09-10
-- Kernel form (requires libqmap >= 0.8.0): maps open QM_SORTED|QM_MULTIVALUE
+- Kernel form (requires libcorm >= 0.8.0): maps open CM_SORTED|CM_MULTIVALUE
   - Multi-value cells: islet_put appends; new islet_set (replace), islet_get_multi /
     islet_cell_next (chain read in insertion order), islet_cell_count, islet_del_all
   - islet_get returns the first value; islet_del removes the first value
@@ -123,10 +123,10 @@
 - Update README with testing documentation
 
 ## [0.3.0] - 2026-02-23
-- Update to libqmap 0.6.0
+- Update to libcorm 0.6.0
   - Improved pointer stability via allocation reuse optimization
-  - File loading no longer requires QM_MIRROR flag
+  - File loading no longer requires CM_MIRROR flag
   - Enhanced documentation and bug fixes
 
 ## [0.2.0] - 2025-10-24
-- Update to libqmap 0.5.0 (BTREE support)
+- Update to libcorm 0.5.0 (BTREE support)

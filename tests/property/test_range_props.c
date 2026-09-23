@@ -4,7 +4,7 @@
  *        brute-force full-map-scan oracle.
  *
  * True oracle (not self-referential): the reference path scans the whole
- * map with qmap_iter NULL and filters by box membership, independently of
+ * map with corm_iter NULL and filters by box membership, independently of
  * islet_box_visit's GE seeks, restarts, and jumps. Randomized clouds with MV
  * collisions and duplicate values, random boxes, 1D/2D/3D, plus edit churn
  * between queries (dirty sorted-index rebuild path). Deterministic PRNG.
@@ -14,7 +14,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,8 +37,8 @@ static void check_box(uint32_t db, int16_t *s, uint16_t *l, uint8_t dim) {
     uint64_t rmin = islet_ops[dim].morton_set(s);
     uint64_t rmax = islet_ops[dim].morton_set(e);
 
-    uint32_t bcur = qmap_iter(db, NULL, 0);
-    while (qmap_next(&key, &value, bcur)) {
+    uint32_t bcur = corm_iter(db, NULL, 0);
+    while (corm_next(&key, &value, bcur)) {
         uint64_t code = *(uint64_t *)key;
 
         if (code < rmin || code > rmax)
@@ -61,7 +61,7 @@ static void check_box(uint32_t db, int16_t *s, uint16_t *l, uint8_t dim) {
         }
         brute[bn++] = *(uint32_t *)value;
     }
-    qmap_fin(bcur);
+    corm_fin(bcur);
 
     size_t wcap = 64, wn = 0;
     uint32_t *walk = malloc(wcap * sizeof *walk);

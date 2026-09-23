@@ -224,7 +224,7 @@ cd .. && make && cd tests
 
 ### Valgrind reports errors
 
-Check if errors are in libislet code or dependencies (qmap, qsys). Islet-specific leaks should be investigated.
+Check if errors are in libislet code or dependencies (corm, qsys). Islet-specific leaks should be investigated.
 
 ### Performance regression
 

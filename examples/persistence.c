@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <ttypt/islet.h>
 #include <ttypt/pointcfg.h>
-#include <ttypt/qmap.h>
+#include <ttypt/corm.h>
 
 void example_initial_save(void);
 void example_verify_load(void);
@@ -87,12 +87,12 @@ void example_initial_save(void)
 	       spawn[0], spawn[1], spawn[2]);
 
 	// Explicitly save (optional - auto-saves on exit anyway)
-	printf("\nCalling qmap_save() to persist data...\n");
-	qmap_save();
+	printf("\nCalling corm_save() to persist data...\n");
+	corm_save();
 	printf("Data saved to example_world.db\n");
 
 	// Close database (optional - auto-closes on exit)
-	qmap_close(db);
+	corm_close(db);
 	printf("Database closed\n");
 }
 
@@ -144,7 +144,7 @@ void example_verify_load(void)
 	printf("  - Total blocks: %d\n", total_blocks);
 	printf("\n✓ Data successfully persisted and loaded!\n");
 
-	qmap_close(db);
+	corm_close(db);
 }
 
 void example_multiple_databases(void)
@@ -186,13 +186,13 @@ void example_multiple_databases(void)
 	printf("  3. 'items' database: 3 dropped items\n");
 
 	// Save all databases
-	qmap_save();
+	corm_save();
 	printf("\nAll databases saved to example_multi.db\n");
 
 	// Close
-	qmap_close(db_players);
-	qmap_close(db_chunks);
-	qmap_close(db_items);
+	corm_close(db_players);
+	corm_close(db_chunks);
+	corm_close(db_items);
 
 	// Reopen and verify
 	printf("\nReopening and verifying:\n");
@@ -219,7 +219,7 @@ void example_multiple_databases(void)
 
 	printf("\n✓ Multiple databases successfully stored in one file!\n");
 
-	qmap_close(db_players);
-	qmap_close(db_chunks);
-	qmap_close(db_items);
+	corm_close(db_players);
+	corm_close(db_chunks);
+	corm_close(db_items);
 }

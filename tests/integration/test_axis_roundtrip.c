@@ -2,8 +2,8 @@
  * test_axis_roundtrip.c — 2A-5: file-backed store, cross-process round-trip.
  *
  * Self-exec'ing harness — orchestrator fork+exec's itself per phase (fresh
- * process, so reopen reads what the prior phase's qmap_save()+destructor
- * flushed to disk; never qmap_close). Proves islet file-backed lifecycle
+ * process, so reopen reads what the prior phase's corm_save()+destructor
+ * flushed to disk; never corm_close). Proves islet file-backed lifecycle
  * including the .ridx rev rehydration never yet tested cross-process:
  *
  *   seed     → rec_axis_store(11,"1,2;4,5") and (12,"7,8") via file-backed ctx
@@ -14,7 +14,7 @@
 
 #include "../test_common.h"
 #include "../../include/ttypt/islet.h"
-#include <ttypt/qmap.h>
+#include <ttypt/corm.h>
 #include <ttypt/rec.h>
 
 #include <sys/wait.h>
@@ -63,7 +63,7 @@ phase_seed(void)
 			return 1;
 		free(blob);
 	}
-	qmap_save();
+	corm_save();
 	return 0;
 }
 
@@ -144,7 +144,7 @@ phase_unstore(void)
 			return 1;
 		free(blob);
 	}
-	qmap_save();
+	corm_save();
 	return 0;
 }
 

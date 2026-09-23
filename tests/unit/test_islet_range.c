@@ -3,7 +3,7 @@
  * @brief Unit tests for the Z-interval skip in the box walker.
  *
  * Strategy: a brute-force full-map-scan oracle (independent code path:
- * qmap_iter NULL scan + own box check) is the truth. The walker must agree
+ * corm_iter NULL scan + own box check) is the truth. The walker must agree
  * with it exactly on every configuration, including MV chains and dirty
  * (post-edit) maps. A dense adversarial configuration (every morton-interval
  * address occupied) locks the soundness proof: jumps may skip false
@@ -15,7 +15,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,8 +46,8 @@ static uint32_t *brute_collect(uint32_t db, int16_t *s, uint16_t *l, uint8_t dim
     uint64_t rmin = islet_ops[dim].morton_set(s);
     uint64_t rmax = islet_ops[dim].morton_set(e);
 
-    uint32_t cur = qmap_iter(db, NULL, 0);
-    while (qmap_next(&key, &value, cur)) {
+    uint32_t cur = corm_iter(db, NULL, 0);
+    while (corm_next(&key, &value, cur)) {
         uint64_t code = *(uint64_t *)key;
 
         if (code < rmin || code > rmax)
@@ -70,7 +70,7 @@ static uint32_t *brute_collect(uint32_t db, int16_t *s, uint16_t *l, uint8_t dim
         }
         vals[n++] = *(uint32_t *)value;
     }
-    qmap_fin(cur);
+    corm_fin(cur);
 
     *n_out = n;
     *interval_out = interval;

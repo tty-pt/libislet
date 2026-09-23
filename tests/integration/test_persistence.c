@@ -8,7 +8,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -86,7 +86,7 @@ TEST(persistence_with_deletions) {
         uint32_t val = islet_get_3(db, coords);
         
         if (i % 2 == 0) {
-            ASSERT_EQ(val, QM_MISS);
+            ASSERT_EQ(val, CM_MISS);
         } else {
             ASSERT_EQ(val, (uint32_t)i);
         }

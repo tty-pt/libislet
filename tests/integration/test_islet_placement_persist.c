@@ -71,8 +71,8 @@ TEST(placement_persist_exact_cloud) {
 	islet_put_3(db, mv, 7003);
 
 	ASSERT_EQ(idx, 24);
-	qmap_save();
-	qmap_close(db);
+	corm_save();
+	corm_close(db);
 
 	db = islet_open(PLC_F, "plc", 4095);
 
@@ -86,7 +86,7 @@ TEST(placement_persist_exact_cloud) {
 
 	ASSERT_EQ(islet_cell_count_3(db, mv), nmv);
 	uint32_t cur = islet_get_multi_3(db, mv);
-	ASSERT(cur != QM_MISS);
+	ASSERT(cur != CM_MISS);
 	uint32_t ref;
 	ASSERT_EQ(islet_cell_next(&ref, cur), 1);
 	ASSERT_EQ(ref, 7001);
@@ -140,7 +140,7 @@ TEST(placement_persist_exact_cloud) {
 	}
 	free(exp);
 
-	qmap_close(db);
+	corm_close(db);
 	unlink(PLC_F);
 }
 

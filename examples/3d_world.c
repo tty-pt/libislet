@@ -17,7 +17,7 @@
 #include <time.h>
 #include <ttypt/islet.h>
 #include <ttypt/pointcfg.h>
-#include <ttypt/qmap.h>
+#include <ttypt/corm.h>
 
 // Block types
 typedef enum {
@@ -146,7 +146,7 @@ int main(void)
 
 	// Save world
 	printf("\nSaving world to disk...\n");
-	qmap_save();
+	corm_save();
 	printf("World saved to world.db:voxels\n");
 
 	printf("\n=== Example Complete ===\n");
@@ -159,7 +159,7 @@ int main(void)
 	printf("- World persistence\n");
 	printf("\nWorld file: world.db (can be deleted with: rm world.db)\n");
 
-	qmap_close(world);
+	corm_close(world);
 	return 0;
 }
 

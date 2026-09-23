@@ -330,9 +330,9 @@ islet_jump_over_gap32(uint64_t code, int32_t *p, const islet_box_t *ub)
  * lies in [s, s+l), in morton-discovery order. Multiple values sharing one
  * cell are visited as distinct entries. Returns the visit count.
  *
- * On a QM_MULTIVALUE map a plain QM_RANGE walk would only iterate the
- * duplicates of the starting key, so the walk REQUIRES QM_RANGE_GE.
- * The map is QM_SORTED by morton code, so the walk stops at the first
+ * On a CM_MULTIVALUE map a plain CM_RANGE walk would only iterate the
+ * duplicates of the starting key, so the walk REQUIRES CM_RANGE_GE.
+ * The map is CM_SORTED by morton code, so the walk stops at the first
  * key past rmax.
  *
  * Z-interval skip: a stored key inside [rmin, rmax] but outside the box
@@ -403,9 +403,9 @@ islet_box_walk_##NAME(uint32_t pdb_hd, PT *s, LT *l, \
 	 * skipped without decoding. No cursor is ever reopened. */ \
 	islet_scan_count = 0; \
 	floor = rmin; \
-	cur = qmap_iter(pdb_hd, &rmin, QM_RANGE | QM_RANGE_GE); \
+	cur = corm_iter(pdb_hd, &rmin, CM_RANGE | CM_RANGE_GE); \
  \
-	while (qmap_next(&key, &value, cur)) { \
+	while (corm_next(&key, &value, cur)) { \
 		code = * (uint64_t *) key; \
  \
 		if (code > rmax) \
@@ -432,7 +432,7 @@ islet_box_walk_##NAME(uint32_t pdb_hd, PT *s, LT *l, \
 			break; \
 	} \
  \
-	qmap_fin(cur); \
+	corm_fin(cur); \
 	return n; \
 }
 
@@ -577,7 +577,7 @@ islet_next32(int32_t *p, uint32_t *ref, uint32_t cur)
 /* Per-cell chain cursors for islet_get_multi (indexed by idm handle). */
 static uint32_t islet_mcursors[1024];
 
-/* Per-config cell-chain cursors. The qmap chain handles are
+/* Per-config cell-chain cursors. The corm chain handles are
  * lane-agnostic, so one pool serves every config; islet_cell_next
  * stays the shared value-only advance for all of them. */
 #define ISLET_GET_MULTI_CFG(NAME, PT, MSET) \
@@ -585,11 +585,11 @@ uint32_t \
 islet_get_multi_##NAME(uint32_t pdb_hd, PT *p) \
 { \
 	uint64_t code = MSET(p); \
-	uint32_t qcur = qmap_get_multi(pdb_hd, &code); \
+	uint32_t qcur = corm_get_multi(pdb_hd, &code); \
 	uint32_t cur; \
  \
-	if (qcur == QM_MISS) \
-		return QM_MISS; \
+	if (qcur == CM_MISS) \
+		return CM_MISS; \
  \
 	cur = idm_new(&islet_idm); \
 	islet_mcursors[cur] = qcur; \
@@ -608,8 +608,8 @@ islet_cell_next(uint32_t *ref, uint32_t cur)
 {
 	const void *key, *value;
 
-	if (!qmap_next(&key, &value, islet_mcursors[cur])) {
-		qmap_fin(islet_mcursors[cur]);
+	if (!corm_next(&key, &value, islet_mcursors[cur])) {
+		corm_fin(islet_mcursors[cur]);
 		idm_del(&islet_idm, cur);
 		return 0;
 	}
@@ -758,37 +758,37 @@ static uint64_t isletc_p2_idx_##D(int16_t *p, int16_t *s, int16_t *e) \
 static void isletc_p2_put_##D(uint32_t db, int16_t *p, uint32_t ref) \
 { \
 	uint64_t c = morton_set_##D(p); \
-	qmap_put(db, &c, &ref); \
+	corm_put(db, &c, &ref); \
 } \
 static uint32_t isletc_p2_get_##D(uint32_t db, int16_t *p) \
 { \
 	uint64_t c = morton_set_##D(p); \
-	const void *v = qmap_get(db, &c); \
+	const void *v = corm_get(db, &c); \
 	return v ? *(uint32_t *)v : ISLET_MISS; \
 } \
 static void isletc_p2_replace_##D(uint32_t db, int16_t *p, uint32_t ref) \
 { \
 	uint64_t c = morton_set_##D(p); \
-	qmap_del_all(db, &c); \
-	qmap_put(db, &c, &ref); \
+	corm_del_all(db, &c); \
+	corm_put(db, &c, &ref); \
 } \
 static void isletc_p2_del_##D(uint32_t db, int16_t *p) \
 { \
 	uint64_t c = morton_set_##D(p); \
-	qmap_del(db, &c); \
+	corm_del(db, &c); \
 } \
 static uint32_t isletc_p2_del_all_##D(uint32_t db, int16_t *p) \
 { \
 	uint64_t c = morton_set_##D(p); \
-	uint32_t n = qmap_count(db, &c); \
+	uint32_t n = corm_count(db, &c); \
 	if (n) \
-		qmap_del_all(db, &c); \
+		corm_del_all(db, &c); \
 	return n; \
 } \
 static uint32_t isletc_p2_cell_count_##D(uint32_t db, int16_t *p) \
 { \
 	uint64_t c = morton_set_##D(p); \
-	return qmap_count(db, &c); \
+	return corm_count(db, &c); \
 }
 
 ISLET_P2B_VEC(1)
@@ -850,37 +850,37 @@ static uint64_t isletc_p4_idx(int32_t *p, int32_t *s, int32_t *e) \
 static void isletc_p4_put(uint32_t db, int32_t *p, uint32_t ref) \
 { \
 	uint64_t c = morton_set_2_32(p); \
-	qmap_put(db, &c, &ref); \
+	corm_put(db, &c, &ref); \
 } \
 static uint32_t isletc_p4_get(uint32_t db, int32_t *p) \
 { \
 	uint64_t c = morton_set_2_32(p); \
-	const void *v = qmap_get(db, &c); \
+	const void *v = corm_get(db, &c); \
 	return v ? *(uint32_t *)v : ISLET_MISS; \
 } \
 static void isletc_p4_replace(uint32_t db, int32_t *p, uint32_t ref) \
 { \
 	uint64_t c = morton_set_2_32(p); \
-	qmap_del_all(db, &c); \
-	qmap_put(db, &c, &ref); \
+	corm_del_all(db, &c); \
+	corm_put(db, &c, &ref); \
 } \
 static void isletc_p4_del(uint32_t db, int32_t *p) \
 { \
 	uint64_t c = morton_set_2_32(p); \
-	qmap_del(db, &c); \
+	corm_del(db, &c); \
 } \
 static uint32_t isletc_p4_del_all(uint32_t db, int32_t *p) \
 { \
 	uint64_t c = morton_set_2_32(p); \
-	uint32_t n = qmap_count(db, &c); \
+	uint32_t n = corm_count(db, &c); \
 	if (n) \
-		qmap_del_all(db, &c); \
+		corm_del_all(db, &c); \
 	return n; \
 } \
 static uint32_t isletc_p4_cell_count(uint32_t db, int32_t *p) \
 { \
 	uint64_t c = morton_set_2_32(p); \
-	return qmap_count(db, &c); \
+	return corm_count(db, &c); \
 }
 
 ISLET_P4B_BACKERS
@@ -1029,17 +1029,17 @@ islet_init(void) {
 	if (inited)
 		return;
 	inited = 1;
-	qm_u = qmap_reg(sizeof(uint32_t));
-	qm_u64 = qmap_reg(sizeof(uint64_t));
-	qmap_cmp_set(qm_u64, morton_cmp);
+	qm_u = corm_reg(sizeof(uint32_t));
+	qm_u64 = corm_reg(sizeof(uint64_t));
+	corm_cmp_set(qm_u64, morton_cmp);
 	islet_idm = idm_init();
 }
 
 
 uint32_t
 islet_open(char *filename, char *database, uint32_t mask) {
-	return qmap_open(filename, database, qm_u64, qm_u, mask,
-			QM_SORTED | QM_MULTIVALUE);
+	return corm_open(filename, database, qm_u64, qm_u, mask,
+			CM_SORTED | CM_MULTIVALUE);
 }
 
 #if ISLET_SIMD_MORTON
@@ -1504,7 +1504,7 @@ morton_get_bulk4(int16_t points[][4], const uint64_t *codes, uint32_t n)
 /* ---- rec_query axis registration (islet / space) ---- */
 
 /* D14 axis-contributed CLI options (first CLI surface for islet): the
- * qmap CLI broadcasts inline `--dim=…` / `--s=…` / `--l=…` to every
+ * corm CLI broadcasts inline `--dim=…` / `--s=…` / `--l=…` to every
  * bound axis declaring them. Names mirror the decode keys 1:1 (scoped
  * synth `--dim@A` depends on it). Leaf specs win over this (spec > CLI).
  * The option struct ABI is kernel-owned in <ttypt/rec.h>. */
@@ -1675,7 +1675,7 @@ rec_axis_config_arg(const char *name, const char *value)
 
 /* =====================================================================
  * Phase 2A store/unstore/readback (RECALL-KERNEL.md "rec_axis_store
- * convention", optional CLI-specific — not libqmap core API). ctx is the
+ * convention", optional CLI-specific — not libcorm core API). ctx is the
  * grid db handle widened to a pointer via uintptr_t (same cast
  * rec_axis_open/islet_fill use); the locked contract rejects ctx ==
  * NULL. spec is reserved (NULL). The grammar is the whole value string:
@@ -1686,7 +1686,7 @@ rec_axis_config_arg(const char *name, const char *value)
  * The grid is keyed by cell, the value is the ref — a ref is not
  * discoverable backwards without an inverse, so the store maintains a
  * rev manifest (ref -> cells) as its own single-map "<fname>.ridx"
- * sidecar: qmap u32 ref -> `;`-joined canonical point string,
+ * sidecar: corm u32 ref -> `;`-joined canonical point string,
  * replace-in-place per ref. unstore walks it backwards, O(cells-of-ref),
  * never a scan; readback renders it NUL-joined, round-trippable.
  * ===================================================================== */
@@ -1864,7 +1864,7 @@ uint32_t \
 islet_del_value_##NAME(uint32_t pdb_hd, PT *p, uint32_t thing) \
 { \
 	uint64_t code = MSET(p); \
-	uint32_t cnt = qmap_count(pdb_hd, &code); \
+	uint32_t cnt = corm_count(pdb_hd, &code); \
 	uint32_t cur; \
 	uint32_t v, *vals, n = 0, i, out = 0, removed = 0; \
 	 \
@@ -1873,7 +1873,7 @@ islet_del_value_##NAME(uint32_t pdb_hd, PT *p, uint32_t thing) \
 	vals = malloc(cnt * sizeof(*vals)); \
 	CBUG(!vals, "out of memory in islet_del_value"); \
 	cur = islet_get_multi_##NAME(pdb_hd, p); \
-	if (cur == QM_MISS) { \
+	if (cur == CM_MISS) { \
 		free(vals); \
 		return 0; \
 	} \
@@ -1891,9 +1891,9 @@ islet_del_value_##NAME(uint32_t pdb_hd, PT *p, uint32_t thing) \
 			vals[out++] = vals[i]; \
 	} \
 	if (removed) { \
-		qmap_del_all(pdb_hd, &code); \
+		corm_del_all(pdb_hd, &code); \
 		for (i = 0; i < out; i++) \
-			qmap_put(pdb_hd, &code, &vals[i]); \
+			corm_put(pdb_hd, &code, &vals[i]); \
 	} \
 	free(vals); \
 	return removed; \
@@ -1932,7 +1932,7 @@ typedef struct {
 	uint32_t rev;
 	char *fname; /* owned strdup of the grid spec fname (NULL: memory) */
 	char *spec; /* owned rec_axis_open parse buffer (NULL: lazy path);
-		     * the grid's qmap head points into it — freed only
+		     * the grid's corm head points into it — freed only
 		     * with the process, never during the run */
 } islet_rev_t;
 
@@ -1951,8 +1951,8 @@ islet_rev_index(uint32_t grid)
 }
 
 /* Open a grid's rev manifest: the single map in "<fname>.ridx"
- * (in-memory when fname is NULL). Returns the rev hd or QM_MISS. The
- * ridx name is kept process-lifetime: qmap_open does not copy the
+ * (in-memory when fname is NULL). Returns the rev hd or CM_MISS. The
+ * ridx name is kept process-lifetime: corm_open does not copy the
  * filename, and it must stay valid while the map is open. */
 static uint32_t
 islet_rev_register(uint32_t grid, const char *fname, const char *dbname,
@@ -1976,12 +1976,12 @@ islet_rev_register(uint32_t grid, const char *fname, const char *dbname,
 		gname = strdup(fname);
 		CBUG(!gname, "out of memory in islet_rev_register");
 	}
-	rev = qmap_open(rname, dbname, qm_u, QM_STR, mask, 0);
-	if (rev == QM_MISS) {
+	rev = corm_open(rname, dbname, qm_u, CM_STR, mask, 0);
+	if (rev == CM_MISS) {
 		free(rname);
 		free(gname);
 		free(specbuf);
-		return QM_MISS;
+		return CM_MISS;
 	}
 	if (islet_revs_n == islet_revs_cap) {
 		size_t ncap = islet_revs_cap ? islet_revs_cap * 2 : 8;
@@ -2026,11 +2026,11 @@ rec_axis_unstore(void *ctx, rec_ref_t ref)
 		return -1;
 	}
 	rev = islet_rev_for(db);
-	if (rev == QM_MISS) {
+	if (rev == CM_MISS) {
 		errno = ENOMEM;
 		return -1;
 	}
-	val = qmap_get(rev, &ref);
+	val = corm_get(rev, &ref);
 	if (!val)
 		return 0; /* idempotent: ref owns nothing here */
 	pts = malloc(ISLET_AXIS_MAX_POINTS * sizeof(*pts));
@@ -2048,7 +2048,7 @@ rec_axis_unstore(void *ctx, rec_ref_t ref)
 	 * the ref's own manifest entry. O(cells-of-ref). */
 	for (i = 0; i < n; i++)
 		islet_axis_del_value(db, pts[i], dim, (uint32_t)ref);
-	qmap_del(rev, &ref);
+	corm_del(rev, &ref);
 	free(pts);
 	return 0;
 }
@@ -2073,11 +2073,11 @@ rec_axis_readback(void *ctx, rec_ref_t ref, char **blob_out, size_t *n_out)
 		return -1;
 	}
 	rev = islet_rev_for(db);
-	if (rev == QM_MISS) {
+	if (rev == CM_MISS) {
 		errno = ENOMEM;
 		return -1;
 	}
-	val = qmap_get(rev, &ref);
+	val = corm_get(rev, &ref);
 	if (!val)
 		return 0; /* absent -> NULL/0, still 0 */
 	pts = malloc(ISLET_AXIS_MAX_POINTS * sizeof(*pts));
@@ -2132,7 +2132,7 @@ rec_axis_store(void *ctx, const char *spec, rec_ref_t ref, const char *value)
 		return -1; /* errno set by the parser */
 	}
 	rev = islet_rev_for(db);
-	if (rev == QM_MISS) {
+	if (rev == CM_MISS) {
 		free(pts);
 		errno = ENOMEM;
 		return -1;
@@ -2161,7 +2161,7 @@ rec_axis_store(void *ctx, const char *spec, rec_ref_t ref, const char *value)
 		k++;
 	}
 	joined = islet_axis_emit(kpts, k, dim);
-	qmap_put(rev, &ref, joined);
+	corm_put(rev, &ref, joined);
 	free(joined);
 	free(codes);
 	free(kpts);
@@ -2181,7 +2181,7 @@ __attribute__((constructor)) static void islet_rec_axis_init(void)
 
 /*
  * rec_axis_open convention (RECALL-KERNEL.md "rec_axis_open convention", optional CLI-open
- * convention, not part of libqmap's core rec_query registry API): spec
+ * convention, not part of libcorm's core rec_query registry API): spec
  * is "filename:database:mask" (`:`-separated, any/all fields may be
  * empty for islet_open()'s NULL/0 defaults). Returns the uint32_t db
  * handle widened to a pointer via uintptr_t, same cast the constructor's
@@ -2214,19 +2214,19 @@ void *rec_axis_open(const char *spec)
 
 	mask = (maskstr && *maskstr) ? (uint32_t)strtoul(maskstr, NULL, 10) : 0;
 	db = islet_open(*fname ? fname : NULL, *dbname ? dbname : NULL, mask);
-	if (db == QM_MISS) {
+	if (db == CM_MISS) {
 		free(buf);
 		return NULL;
 	}
 	/* The phase-2A rev manifest: file-backed sidecar when the spec
 	 * names a file, in-memory otherwise. buf is handed to the registry
-	 * (never freed mid-run): the grid's qmap head keeps a pointer into
+	 * (never freed mid-run): the grid's corm head keeps a pointer into
 	 * it for the map's lifetime, per the islet_open contract. */
 	rev = islet_rev_register(db,
 			*fname ? fname : NULL,
 			*dbname ? dbname : NULL,
 			mask, buf);
-	if (rev == QM_MISS)
+	if (rev == CM_MISS)
 		return NULL;
 	return (void *)(uintptr_t)db;
 }

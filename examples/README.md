@@ -64,7 +64,7 @@ make 3d_world
 **What it demonstrates:**
 - Creating file-backed databases for persistence
 - Automatic data loading on reopen
-- Explicit saving with `qmap_save()`
+- Explicit saving with `corm_save()`
 - Automatic saving at process exit
 - Storing multiple logical databases in one file
 - Verifying data persistence across runs
@@ -120,7 +120,7 @@ rm world.db
 
 These examples require:
 - libislet (built from parent directory)
-- libqmap >= 0.6.0
+- libcorm >= 0.6.0
 - libqsys
 - libxxhash
 

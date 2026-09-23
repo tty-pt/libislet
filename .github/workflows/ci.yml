@@ -11,14 +11,14 @@ jobs:
     with:
       name: libislet
       publish_to: "deb,apk,rpm,brew,openbsd,winget"
-      deps: "libqmap"
-      deps_deb: "libqsys,libqmap,libxxhash-dev"
-      deps_apk: "libqsys,libqmap,xxhash-dev"
-      deps_rpm: "libqsys,libqmap,xxhash-devel"
-      deps_brew: "libqsys,libqmap,xxhash"
-      deps_openbsd: "libqsys,libqmap,xxhash"
+      deps: "libcorm"
+      deps_deb: "libqsys,libcorm,libxxhash-dev"
+      deps_apk: "libqsys,libcorm,xxhash-dev"
+      deps_rpm: "libqsys,libcorm,xxhash-devel"
+      deps_brew: "libqsys,libcorm,xxhash"
+      deps_openbsd: "libqsys,libcorm,xxhash"
       deps_winget: "mingw-w64-x86_64-xxhash,mingw-w64-x86_64-mman-win32"
-      deps_winget_tty: "libqsys,libqmap"
+      deps_winget_tty: "libqsys,libcorm"
     secrets:
       HOST: ${{ secrets.OPENBSD_HOST }}
       USER: ${{ secrets.OPENBSD_USER }}

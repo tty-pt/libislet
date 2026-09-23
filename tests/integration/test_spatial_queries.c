@@ -7,7 +7,7 @@
 #include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -59,8 +59,8 @@ TEST(query_after_deletions) {
     islet_del_3(db, (int16_t[]){2, 2, 2});
     
     /* Verify using islet_get */
-    ASSERT_EQ(islet_get_3(db, (int16_t[]){0, 0, 0}), QM_MISS);
-    ASSERT_EQ(islet_get_3(db, (int16_t[]){2, 2, 2}), QM_MISS);
+    ASSERT_EQ(islet_get_3(db, (int16_t[]){0, 0, 0}), CM_MISS);
+    ASSERT_EQ(islet_get_3(db, (int16_t[]){2, 2, 2}), CM_MISS);
     ASSERT_EQ(islet_get_3(db, (int16_t[]){1, 1, 1}), 1u);
 }
 

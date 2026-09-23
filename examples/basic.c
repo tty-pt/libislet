@@ -109,7 +109,7 @@ int main(void)
 	       val, pos2d[0], pos2d[1]);
 
 	// Note: In a real application with file-backed databases,
-	// you would call qmap_save() to persist data mid-execution,
+	// you would call corm_save() to persist data mid-execution,
 	// or rely on automatic save at process exit.
 
 	printf("=== Example Complete ===\n");

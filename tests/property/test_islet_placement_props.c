@@ -77,7 +77,7 @@ static void model_del_cell(pair_t *m, size_t *nm, int16_t *p, uint8_t dim)
 	 * slot and silently reorder every surviving row's array position, so
 	 * the model would no longer reflect the true insertion order of the
 	 * surviving puts (the DB chain tail-appends and is preserved by
-	 * qmap_rebuild_map). */
+	 * corm_rebuild_map). */
 	for (size_t j = 0; j < *nm;) {
 		if (cell_eq(&m[j], &probe, dim)) {
 			memmove(&m[j], &m[j + 1], (*nm - j - 1) * sizeof *m);
@@ -191,7 +191,7 @@ static void assert_cell_matches_model(uint32_t db, int16_t *p, uint8_t dim,
 	uint32_t ref;
 
 	if (nwant == 0) {
-		ASSERT_EQ(cur, QM_MISS);
+		ASSERT_EQ(cur, CM_MISS);
 		return;
 	}
 	for (size_t i = 0; i < nwant; i++) {
