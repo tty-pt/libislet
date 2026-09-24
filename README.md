@@ -1,32 +1,84 @@
 # libislet
+
+[![C99](https://img.shields.io/badge/C-C99-555?logo=c)](#)
+[![BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
+[![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
+
 > Spatial database library using Morton code indexing for efficient multi-dimensional coordinate queries.
 
-A small library for spatial/geographic databases. Store and query data indexed by multi-dimensional coordinates (typically 3D) with efficient range queries powered by Morton codes (Z-order space-filling curves).
+A small library for spatial/geographic databases. Store and query data indexed
+by multi-dimensional coordinates (typically 3D) with efficient range queries
+powered by Morton codes (Z-order space-filling curves).
 
-## Key Features
+## Contents
 
-- **Morton Code Indexing**: Efficient spatial-to-linear mapping preserving locality
-- **Multi-Value Cells**: Several values can share one grid cell (append/read-all/replace/clear)
-- **Fast Range Queries**: Query rectangular regions with O(log n + k) complexity
-- **Z-Interval Skip**: Box walks jump whole empty aligned cubes instead of decoding every key
-- **Kernel-Form Fill**: `Point3_2.fill_bbox()` streams a box straight into a sealed recall candidate set
-- **File Persistence**: Optional disk storage via libcorm
-- **Flexible Dimensions**: Optimized for 3D, designed for N-dimensional support
-- **Simple C API**: Minimal, easy-to-use interface
-- **Sparse Data Efficient**: Only stores occupied coordinates
+- [Features](#features)
+- [Install](#install)
+- [Build from source](#build-from-source)
+- [Quickstart](#quickstart)
+- [Coordinate system](#coordinate-system)
+- [Use cases](#use-cases)
+- [ID-uniformity contract](#id-uniformity-contract)
+- [API overview](#api-overview)
+- [Kernel form (recall composition)](#kernel-form-recall-composition)
+- [File persistence](#file-persistence)
+- [Thread safety](#thread-safety)
+- [Performance notes](#performance-notes)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [License](#license)
 
-## ID-uniformity contract
+## Features
 
-Stored per-cell values ("thing"/"ref") are `uint32_t` by design — a
-deliberate storage/SIMD tradeoff, not a gap. Consumers that join islet with
-libjoint/libsepal/libstoma (or any `rec.h`-based recall-kernel composition)
-should rely on the widening that already happens at
-`rec_axis_fill_bbox_N()` / `Point*.fill_bbox()`: every stored `uint32_t` is
-promoted to `rec_ref_t` (u32 — an identity widening since the retype)
-there, and that is the only place the uniformity boundary is guaranteed. Ids above `UINT32_MAX` do not round-trip
-through `islet_put_N()`/`islet_get_N()`.
+- **Morton Code Indexing** — efficient spatial-to-linear mapping preserving
+  locality
+- **Multi-Value Cells** — several values can share one grid cell
+  (append/read-all/replace/clear)
+- **Fast Range Queries** — query rectangular regions with O(log n + k)
+  complexity
+- **Z-Interval Skip** — box walks jump whole empty aligned cubes instead of
+  decoding every key
+- **Kernel-Form Fill** — `Point3_2.fill_bbox()` streams a box straight into a
+  sealed recall candidate set
+- **File Persistence** — optional disk storage via libcorm
+- **Flexible Dimensions** — optimized for 3D, designed for N-dimensional
+  support
+- **Simple C API** — minimal, easy-to-use interface
+- **Sparse Data Efficient** — only stores occupied coordinates
 
-## Quick Start
+## Install
+
+Prebuilt packages are distributed from tty.pt for Linux (APT / Alpine / Arch /
+Fedora-RHEL), macOS (Homebrew), Windows (winget / MSYS2), and OpenBSD. Follow
+the [installation instructions](https://github.com/tty-pt/ci/blob/main/docs/install.md)
+and use **libislet** as the package name.
+
+## Build from source
+
+The library builds with a plain `make` (the shared [`mk` include.mk](https://github.com/tty-pt/mk)):
+
+```sh
+make                  # builds lib/libislet.so
+make test             # run the in-tree test suite
+sudo make install     # lib + headers + islet.pc → $(PREFIX), default /usr/local
+```
+
+Or install to a custom prefix:
+
+```sh
+make PREFIX=$HOME/.local install
+```
+
+Link it from your own C code:
+
+```sh
+cc my_app.c $(pkg-config --cflags --libs islet)
+```
+
+**Dependencies:** `libcorm`, `libqsys`, `libxxhash`.
+
+## Quickstart
 
 ```c
 #include <ttypt/pointcfg.h>
@@ -34,51 +86,43 @@ through `islet_put_N()`/`islet_get_N()`.
 int main() {
     // Initialize (required)
     islet_init();
-    
+
     // Create database (256-entry initial table, auto-grows)
     uint32_t db = islet_open(NULL, NULL, 0xFF);
-    
+
     // Store value at 3D coordinate
     int16_t pos[3] = {10, 20, 30};
     Point3_2.put(db, pos, 42);
-    
+
     // Retrieve value
     uint32_t value = Point3_2.get(db, pos);
     if (value != ISLET_MISS) {
         printf("Value: %u\n", value);
     }
-    
+
     // Query rectangular region
     int16_t start[3] = {0, 0, 0};
     uint16_t lengths[3] = {50, 50, 50};
     uint32_t iter = Point3_2.iter(db, start, lengths);
-    
+
     int16_t point[3];
     uint32_t ref;
     while (Point3_2.next(point, &ref, iter)) {
         printf("Point (%d,%d,%d) = %u\n",
                point[0], point[1], point[2], ref);
     }
-    
+
     return 0;
 }
 ```
 
 **Compile:**
+
 ```sh
-cc -o myapp myapp.c -lislet -lcorm -lqsys -lxxhash
+cc -o myapp myapp.c $(pkg-config --cflags --libs islet)
 ```
 
-## Installation
-
-Check out [these instructions](https://github.com/tty-pt/ci/blob/main/docs/install.md#install-ttypt-packages) and use "libislet" as the package name.
-
-**Dependencies:**
-- libcorm >= 0.6.0
-- libqsys
-- libxxhash
-
-## Coordinate System
+## Coordinate system
 
 Two lane widths, picked per config object (`Point<D>_<B>`, B = bytes/lane):
 
@@ -88,9 +132,10 @@ Two lane widths, picked per config object (`Point<D>_<B>`, B = bytes/lane):
   per dimension, 2 dimensions, dense codec filling all 64 key bits
 - **Use Cases**: Game worlds, voxel engines, spatial simulations, particle systems
 
-Coordinates are internally converted to Morton codes (Z-order) for efficient storage and spatial queries.
+Coordinates are internally converted to Morton codes (Z-order) for efficient
+storage and spatial queries.
 
-## Use Cases
+## Use cases
 
 - **Voxel/Block Games**: Minecraft-like worlds, efficient chunk management
 - **Spatial Databases**: Store and query location-based data
@@ -98,6 +143,173 @@ Coordinates are internally converted to Morton codes (Z-order) for efficient sto
 - **Level-of-Detail**: Spatial queries for LOD selection
 - **Collision Detection**: Broad-phase spatial partitioning
 - **Any Application**: Needing fast N-dimensional range queries
+
+## ID-uniformity contract
+
+Stored per-cell values ("thing"/"ref") are `uint32_t` by design — a deliberate
+storage/SIMD tradeoff, not a gap. Consumers that join islet with
+libjoint/libsepal/libstoma (or any `rec.h`-based recall-kernel composition)
+should rely on the widening that already happens at
+`rec_axis_fill_bbox_N()` / `Point*.fill_bbox()`: every stored `uint32_t` is
+promoted to `rec_ref_t` (u32 — an identity widening since the retype) there,
+and that is the only place the uniformity boundary is guaranteed. Ids above
+`UINT32_MAX` do not round-trip through `islet_put_N()`/`islet_get_N()`.
+
+## API overview
+
+The recommended surface is one config object per point type
+(`include/ttypt/pointcfg.h`) — a struct of static methods, one per operation,
+so a language server autocompletes the whole set off a single symbol.
+`<D>` = dimensions, `<B>` = bytes per lane (2 = int16, 4 = int32):
+
+```c
+#include <ttypt/pointcfg.h>
+
+int16_t p[3] = {10, 20, 30};
+Point3_2.put(db, p, 42);             // store 42 at the cell
+uint32_t v = Point3_2.get(db, p);    // read it back
+
+int16_t s[3] = {0, 0, 0};
+uint16_t l[3] = {4, 4, 4};
+uint32_t cur = Point3_2.iter(db, s, l);
+while (Point3_2.next(p, &v, cur))    // advance the box iterator
+    ;
+```
+
+| Object | Config | Lanes | Box lengths | Advance |
+|--------|--------|-------|-------------|---------|
+| `Point1_2` | 1D, 2-byte lanes | `int16_t[1]` | `uint16_t[1]` | `.next` = `islet_next` |
+| `Point2_2` | 2D, 2-byte lanes | `int16_t[2]` | `uint16_t[2]` | `.next` = `islet_next` |
+| `Point3_2` | 3D, 2-byte lanes | `int16_t[3]` | `uint16_t[3]` | `.next` = `islet_next` |
+| `Point4_2` | 4D, 2-byte lanes | `int16_t[4]` | `uint16_t[4]` | `.next` = `islet_next` |
+| `Point2_4` | 2D, 4-byte lanes (dense full-key codec) | `int32_t[2]` | `int32_t[2]` | `.next` = `islet_next32` |
+
+Each object has the same ~20 members: `morton_set`, `morton_get` (codec),
+`add`, `sub`, `min`, `max`, `copy`, `vol`, `set` (broadcast), `debug`, `idx`
+(point utils), `put`, `get`, `replace`, `del`, `del_all`, `cell_count`,
+`get_multi` (+ shared `islet_cell_next()` to drain it), `iter` (+ fused
+`.next` to advance), `fill_bbox` (sealed recall candidate set).
+
+Member names mirror the flat functions one-to-one (`put` = `islet_put_N`,
+`idx` = `point_idx_N`, …) with a single deliberate exception: the DB replace
+op is `.replace`, because `.set` is already the point broadcast
+(`point_set_N`) — the flat name for it is `islet_set_N`. The full mapping
+lives in `include/ttypt/pointcfg.h`.
+
+Shared setup/globals (not per-config): `islet_init()`, `islet_open()`,
+`islet_last_scan_count()`, `islet_cell_next()`, `morton_set_bulk()` /
+`morton_set_bulk4()` (SIMD batch encode), `morton_get_bulk()` /
+`morton_get_bulk4()` (SIMD batch decode).
+
+One config per database: the int16 configs (`Point1_2..Point4_2`) and
+`Point2_4` share the uint64 key space with different layouts, and the file
+carries no config tag — never reopen a database with another config's
+functions.
+
+Low-level flat functions (ABI + tight-loop fast path, same behavior):
+`morton_set_1..4()` / `morton_get_1..4()`, `point_*_1..4()`,
+`islet_put/set/get/del/del_all/cell_count/get_multi/iter/fill_..._1..4()`,
+the `islet_*_2_32()` 32-bit family, and the `islet_ops[1..4]` runtime-dim
+table. Use these directly in hot per-cell loops: the config objects add one
+indirect call per member (measured ~6.5x slower on a bare codec round-trip;
+see `docs/PERF.md`), while scatter DB ops are corm-dominated and unaffected
+in practice.
+
+Coverage: `Point1_2..Point4_2` (int16, 1-4 dims) and `Point2_4` (int32, 2
+dims) are every dimension×lane-width combination that fits a 64-bit key at
+full per-axis range. Deliberately not offered:
+
+- **1D int32/int64** — at 1D there's no interleaving, so the "codec" is an
+  identity bias; int16's ±32767 already covers single-axis use, and the wide
+  cases (timestamps, sequential IDs) want a raw key, not a spatial DB.
+  `Point2_4` is not a substitute either — a constant second lane wastes half
+  the code space for no benefit.
+- **3D+ int32** — 3×32 bits doesn't fit a 64-bit key at full range; the only
+  way in is reduced per-axis precision (e.g. 21 bits/axis, range ±1048575),
+  which is a real but separate design decision (naming, keyspace semantics)
+  rather than a drop-in addition.
+- **5D+ int16** — 5×16 bits doesn't fit either, same story.
+
+Build-time codec tunables (see `docs/PERF.md` for measurements):
+`ISLET_SIMD_MORTON` (default 1) gates the AVX2 bulk encode/decode API;
+`ISLET_USE_PDEP` (default 1) swaps the scalar spread/compact codec for
+PDEP/PEXT when the TU is compiled with `-mbmi2` — bit-identical output, 2-4x
+faster on this measurement machine. Both are opt-out (`-DFLAG=0`), not opt-in.
+
+## Kernel form (recall composition)
+
+`Point3_2.fill_bbox()` is the space-axis adapter for recall-style
+composition: it streams every value in a bounding box into a `rec_set_t`
+candidate set and seals it (sorted + deduplicated), without ever materializing
+the box volume:
+
+```c
+#include <ttypt/pointcfg.h>
+#include <ttypt/rec.h>
+
+rec_set_t *cands = rec_set_new();
+int16_t s[3] = {0, 0, 0};
+uint16_t l[3] = {16, 16, 16};
+if (Point3_2.fill_bbox(db, s, l, cands) == 0) {
+    size_t n = rec_set_count(cands);      /* distinct refs, sorted */
+    const rec_ref_t *refs = rec_set_at(cands);
+    /* ... intersect/union with other axes, rank, fetch ... */
+}
+rec_set_free(cands);
+```
+
+Boxes larger than `ISLET_FILL_MAX_VOL` (1M cells) are rejected with `-1`.
+Requires libcorm >= 0.8.0 (multi-value chains + `rec.h`).
+
+This follows the recall-kernel adapter contract (`docs/RECALL-KERNEL.md` in
+libcorm): one `int rec_axis_fill_*(params, rec_set_t *out)` that streams
+matches into the set and seals it, plain `int` return (0 ok / -1 error),
+additive — the standard `islet_iter`/`islet_next` cursor remains as the raw
+path (it replaced the old matrix-output `geo_search`, removed long before the
+libgeo→libislet rename; no `islet_search` symbol exists). The ref is
+libislet's stored `uint32` cell value widened to `rec_ref_t`; the kernel
+never interprets it. Because both the raw iterator and the fill share
+`islet_box_visit`, the Z-interval skip speeds the fill too, and fills never
+build the box-volume array `islet_iter` collects.
+
+## File persistence
+
+File-backed databases (when filename is provided to `islet_open()`):
+- **Automatic Loading**: Data loads from disk on open
+- **Automatic Saving**: Data saves to disk at process exit
+- **Manual Save**: Call `corm_save()` for mid-execution persistence
+- **Multiple Databases**: Store multiple logical databases in one file
+
+Example:
+```c
+// Open persistent database
+uint32_t db = islet_open("world.db", "main", 0xFFFF);
+
+// ... modify data ...
+
+// Optional: save before exit
+corm_save();
+
+// Automatic: saves on process exit anyway
+```
+
+## Thread safety
+
+⚠️ **NOT thread-safe** — inherits libcorm's global state limitations. Use
+external synchronization (mutexes) if accessing from multiple threads.
+
+## Performance notes
+
+- **Capacity**: The mask sizes the initial table (capacity = mask + 1); the
+  map **auto-grows by doubling** when it fills — no termination, no resizing
+  API
+- **Mask Choice**: use 2^n - 1 near your expected entry count (e.g. 0xFF = 256)
+- **Morton Codes**: provide good spatial locality for cache-friendly access
+- **Range Queries**: O(log n) seek + one decode per examined entry + O(k)
+  visits; the Z-interval skip jumps whole empty aligned cubes, so dense
+  intervals decode far fewer entries than they span
+- **Sparse Data**: only allocated coordinates consume memory
+- **Memory**: inherits corm overhead (~32 bytes/entry + key/value sizes)
 
 ## Examples
 
@@ -118,7 +330,7 @@ make
 ./3d_world
 ```
 
-See `examples/README.md` for detailed descriptions.
+See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
 ## Documentation
 
@@ -143,241 +355,22 @@ Man pages are generated from Doxygen comments in header files:
 - `include/ttypt/morton.h` - Morton code utilities
 - `include/ttypt/point.h` - Point arithmetic
 
-## Performance Notes
-
-- **Capacity**: The mask sizes the initial table (capacity = mask + 1);
-  the map **auto-grows by doubling** when it fills — no termination, no resizing API
-- **Mask Choice**: use 2^n - 1 near your expected entry count (e.g., 0xFF = 256)
-- **Morton Codes**: Provide good spatial locality for cache-friendly access
-- **Range Queries**: O(log n) seek + one decode per examined entry + O(k) visits;
-  the Z-interval skip jumps whole empty aligned cubes, so dense intervals
-  decode far fewer entries than they span
-- **Sparse Data**: Only allocated coordinates consume memory
-- **Memory**: Inherits corm overhead (~32 bytes/entry + key/value sizes)
-
-## Thread Safety
-
-⚠️ **NOT thread-safe** - Inherits libcorm's global state limitations.
-
-Use external synchronization (mutexes) if accessing from multiple threads.
-
-## File Persistence
-
-File-backed databases (when filename is provided to `islet_open()`):
-- **Automatic Loading**: Data loads from disk on open
-- **Automatic Saving**: Data saves to disk at process exit
-- **Manual Save**: Call `corm_save()` for mid-execution persistence
-- **Multiple Databases**: Store multiple logical databases in one file
-
-Example:
-```c
-// Open persistent database
-uint32_t db = islet_open("world.db", "main", 0xFFFF);
-
-// ... modify data ...
-
-// Optional: save before exit
-corm_save();
-
-// Automatic: saves on process exit anyway
-```
-
-## API Overview
-
-The recommended surface is one config object per point type
-(`include/ttypt/pointcfg.h`) — a struct of static methods, one per
-operation, so a language server autocompletes the whole set off a single
-symbol. `<D>` = dimensions, `<B>` = bytes per lane (2 = int16, 4 = int32):
-
-```c
-#include <ttypt/pointcfg.h>
-
-int16_t p[3] = {10, 20, 30};
-Point3_2.put(db, p, 42);             // store 42 at the cell
-uint32_t v = Point3_2.get(db, p);    // read it back
-
-int16_t s[3] = {0, 0, 0};
-uint16_t l[3] = {4, 4, 4};
-uint32_t cur = Point3_2.iter(db, s, l);
-while (Point3_2.next(p, &v, cur))    // advance the box iterator
-    ;
-```
-
-| Object | Config | Lanes | Box lengths | Advance |
-|--------|--------|-------|-------------|---------|
-| `Point1_2` | 1D, 2-byte lanes | `int16_t[1]` | `uint16_t[1]` | `.next` = `islet_next` |
-| `Point2_2` | 2D, 2-byte lanes | `int16_t[2]` | `uint16_t[2]` | `.next` = `islet_next` |
-| `Point3_2` | 3D, 2-byte lanes | `int16_t[3]` | `uint16_t[3]` | `.next` = `islet_next` |
-| `Point4_2` | 4D, 2-byte lanes | `int16_t[4]` | `uint16_t[4]` | `.next` = `islet_next` |
-| `Point2_4` | 2D, 4-byte lanes (dense full-key codec) | `int32_t[2]` | `int32_t[2]` | `.next` = `islet_next32` |
-
-Each object has the same ~20 members: `morton_set`, `morton_get`
-(codec), `add`, `sub`, `min`, `max`, `copy`, `vol`, `set` (broadcast),
-`debug`, `idx` (point utils), `put`, `get`, `replace`, `del`, `del_all`,
-`cell_count`, `get_multi` (+ shared `islet_cell_next()` to drain it), `iter`
-(+ fused `.next` to advance), `fill_bbox` (sealed recall candidate set).
-
-Member names mirror the flat functions one-to-one (`put` = `islet_put_N`,
-`idx` = `point_idx_N`, …) with a single deliberate exception: the DB
-replace op is `.replace`, because `.set` is already the point broadcast
-(`point_set_N`) — the flat name for it is `islet_set_N`. The full mapping
-lives in `include/ttypt/pointcfg.h`.
-
-Shared setup/globals (not per-config):
-`islet_init()`, `islet_open()`, `islet_last_scan_count()`, `islet_cell_next()`,
-`morton_set_bulk()` / `morton_set_bulk4()` (SIMD batch encode),
-`morton_get_bulk()` / `morton_get_bulk4()` (SIMD batch decode).
-
-One config per database: the int16 configs (`Point1_2..Point4_2`) and
-`Point2_4` share the uint64 key space with different layouts, and the file
-carries no config tag — never reopen a database with another config's
-functions.
-
-Low-level flat functions (ABI + tight-loop fast path, same behavior):
-`morton_set_1..4()` / `morton_get_1..4()`, `point_*_1..4()`,
-`islet_put/set/get/del/del_all/cell_count/get_multi/iter/fill_..._1..4()`,
-the `islet_*_2_32()` 32-bit family, and the `islet_ops[1..4]` runtime-dim table.
-Use these directly in hot per-cell loops: the config objects add one
-indirect call per member (measured ~6.5x slower on a bare codec
-round-trip; see docs/PERF.md), while scatter DB ops are corm-dominated
-and unaffected in practice.
-
-Coverage: `Point1_2..Point4_2` (int16, 1-4 dims) and `Point2_4` (int32,
-2 dims) are every dimension×lane-width combination that fits a 64-bit
-key at full per-axis range. Deliberately not offered:
-
-- **1D int32/int64** — at 1D there's no interleaving, so the "codec" is
-  an identity bias; int16's ±32767 already covers single-axis use, and
-  the wide cases (timestamps, sequential IDs) want a raw key, not a
-  spatial DB. `Point2_4` is not a substitute either — a constant second
-  lane wastes half the code space for no benefit.
-- **3D+ int32** — 3×32 bits doesn't fit a 64-bit key at full range; the
-  only way in is reduced per-axis precision (e.g. 21 bits/axis, range
-  ±1048575), which is a real but separate design decision (naming,
-  keyspace semantics) rather than a drop-in addition.
-- **5D+ int16** — 5×16 bits doesn't fit either, same story.
-
-Build-time codec tunables (see `docs/PERF.md` for measurements):
-`ISLET_SIMD_MORTON` (default 1) gates the AVX2 bulk encode/decode API;
-`ISLET_USE_PDEP` (default 1) swaps the scalar spread/compact codec for
-PDEP/PEXT when the TU is compiled with `-mbmi2` — bit-identical output,
-2-4x faster on this measurement machine. Both are opt-out
-(`-DFLAG=0`), not opt-in.
-
-## Kernel Form (recall composition)
-
-`Point3_2.fill_bbox()` is the space-axis adapter for recall-style
-composition: it streams every value in a bounding box into a
-`rec_set_t` candidate set and seals it (sorted + deduplicated), without
-ever materializing the box volume:
-
-```c
-#include <ttypt/pointcfg.h>
-#include <ttypt/rec.h>
-
-rec_set_t *cands = rec_set_new();
-int16_t s[3] = {0, 0, 0};
-uint16_t l[3] = {16, 16, 16};
-if (Point3_2.fill_bbox(db, s, l, cands) == 0) {
-    size_t n = rec_set_count(cands);      /* distinct refs, sorted */
-    const rec_ref_t *refs = rec_set_at(cands);
-    /* ... intersect/union with other axes, rank, fetch ... */
-}
-rec_set_free(cands);
-```
-
-Boxes larger than `ISLET_FILL_MAX_VOL` (1M cells) are rejected with `-1`.
-Requires libcorm >= 0.8.0 (multi-value chains + `rec.h`).
-
-This follows the recall-kernel adapter contract
-(`docs/RECALL-KERNEL.md` in libcorm): one `int rec_axis_fill_*(params,
-rec_set_t *out)` that streams matches into the set and seals it, plain
-`int` return (0 ok / -1 error), additive — the standard
-`islet_iter`/`islet_next` cursor remains as the raw path (it replaced the
-old matrix-output `geo_search`, removed long before the libgeo→libislet
-rename; no `islet_search` symbol exists). The ref is
-libislet's stored `uint32` cell value widened to `rec_ref_t`; the kernel
-never interprets it. Because both the raw iterator and the fill share
-`islet_box_visit`, the Z-interval skip speeds the fill too, and fills never
-build the box-volume array `islet_iter` collects.
-
-## Building from Source
-
-```sh
-git clone <repository-url>
-cd libislet
-make
-sudo make install
-```
-
-Or install to custom prefix:
-```sh
-make PREFIX=$HOME/.local install
-```
+See [`CHANGELOG.md`](CHANGELOG.md) for version history.
 
 ## Testing
 
-The test suite includes 89+ tests covering:
-- Unit tests (65 tests)
-- Integration tests (13 tests)
-- Property-based tests (12K+ assertions)
-- Stress tests (11 tests)
-- Performance benchmarks (4)
-
-Run all tests:
 ```sh
-cd tests
-make clean test
+make test     # runs cd tests && make test (unit + integration + property + stress)
 ```
 
-Run benchmarks:
+Then run benchmarks and fuzzers separately:
 ```sh
-make bench
+make bench            # performance benchmarks
+make fuzz-standalone  # fuzz tests (requires libFuzzer)
 ```
 
-Run fuzz tests (requires libFuzzer):
-```sh
-make fuzz-standalone  # Standalone mode
-```
-
-See `tests/TESTING.md` for detailed documentation.
-
-## Project Structure
-
-```
-libislet/
-├── include/ttypt/    # Public headers
-│   ├── islet.h        # Main API
-│   ├── morton.h     # Morton code utilities
-│   └── point.h      # Point arithmetic
-├── src/             # Implementation
-│   └── libislet.c
-├── examples/        # Example programs
-├── man/             # Generated man pages (via make docs)
-├── CHANGELOG.md     # Version history
-└── README.md        # This file
-```
-
-## Version
-
-Current version: **0.4.1**
-
-See `CHANGELOG.md` for version history and changes.
+See [`tests/TESTING.md`](tests/TESTING.md) for detailed documentation.
 
 ## License
 
-See LICENSE file for details.
-
-## Contributing
-
-Issues and pull requests welcome. Please maintain code style and add tests for new features.
-
-## See Also
-
-- **libcorm**: Underlying hash table and persistence layer
-- **Morton Codes**: https://en.wikipedia.org/wiki/Z-order_curve
-- **Spatial Indexing**: Multi-dimensional range query paper referenced in source
-
-## Contact
-
-For bugs, questions, or suggestions, please open an issue on the project repository.
+BSD 2-Clause License. Copyright (c) 2025, tty-pt. See `LICENSE`.
