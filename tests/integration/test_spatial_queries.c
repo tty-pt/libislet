@@ -1,20 +1,20 @@
 /*
- * Integration tests for spatial queries in libgeo
+ * Integration tests for spatial queries in libislet
  * Tests complex query scenarios with realistic data patterns
  */
 
 #include "../test_common.h"
-#include "../../include/ttypt/geo.h"
+#include "../../include/ttypt/islet.h"
 #include "../../include/ttypt/point.h"
 #include "../../include/ttypt/morton.h"
-#include "../../include/ttypt/qmap.h"
+#include "../../include/ttypt/corm.h"
 #include <stdlib.h>
 #include <string.h>
 
 static void setup_once(void) {
     static int initialized = 0;
     if (!initialized) {
-        geo_init();
+        islet_init();
         initialized = 1;
     }
 }
@@ -22,21 +22,21 @@ static void setup_once(void) {
 /* Test query with empty result */
 TEST(query_empty_region) {
     setup_once();
-    uint32_t db = geo_open(NULL, "test_spatial_3", 1023);
+    uint32_t db = islet_open(NULL, "test_spatial_3", 1023);
     
     /* Insert some points */
     int16_t coords[3] = {100, 100, 100};
-    geo_put(db, coords, 42, 3);
+    islet_put_3(db, coords, 42);
     
     /* Query a different region */
     int16_t start[3] = {0, 0, 0};
     uint16_t len[3] = {10, 10, 10};
-    uint32_t iter = geo_iter(db, start, len, 3);
+    uint32_t iter = islet_iter_3(db, start, len);
     
     int count = 0;
     int16_t p[3];
     uint32_t val;
-    while (geo_next(p, &val, iter)) {
+    while (islet_next(p, &val, iter)) {
         count++;
     }
     
@@ -46,45 +46,45 @@ TEST(query_empty_region) {
 /* Test query after deletions */
 TEST(query_after_deletions) {
     setup_once();
-    uint32_t db = geo_open(NULL, "test_spatial_5", 1023);
+    uint32_t db = islet_open(NULL, "test_spatial_5", 1023);
     
     /* Insert a few points */
     for (int i = 0; i < 5; i++) {
         int16_t coords[3] = {i, i, i};
-        geo_put(db, coords, (uint32_t)i, 3);
+        islet_put_3(db, coords, (uint32_t)i);
     }
     
     /* Delete some */
-    geo_del(db, (int16_t[]){0, 0, 0}, 3);
-    geo_del(db, (int16_t[]){2, 2, 2}, 3);
+    islet_del_3(db, (int16_t[]){0, 0, 0});
+    islet_del_3(db, (int16_t[]){2, 2, 2});
     
-    /* Verify using geo_get */
-    ASSERT_EQ(geo_get(db, (int16_t[]){0, 0, 0}, 3), QM_MISS);
-    ASSERT_EQ(geo_get(db, (int16_t[]){2, 2, 2}, 3), QM_MISS);
-    ASSERT_EQ(geo_get(db, (int16_t[]){1, 1, 1}, 3), 1u);
+    /* Verify using islet_get */
+    ASSERT_EQ(islet_get_3(db, (int16_t[]){0, 0, 0}), CM_MISS);
+    ASSERT_EQ(islet_get_3(db, (int16_t[]){2, 2, 2}), CM_MISS);
+    ASSERT_EQ(islet_get_3(db, (int16_t[]){1, 1, 1}), 1u);
 }
 
 /* Test query with point updates */
 TEST(query_after_updates) {
     setup_once();
-    uint32_t db = geo_open(NULL, "test_spatial_6", 1023);
+    uint32_t db = islet_open(NULL, "test_spatial_6", 1023);
     
     /* Insert initial points */
     for (int i = 0; i < 3; i++) {
         int16_t coords[3] = {i, i, i};
-        geo_put(db, coords, (uint32_t)i, 3);
+        islet_put_3(db, coords, (uint32_t)i);
     }
     
-    /* Update values */
+    /* Update values (replace semantics) */
     for (int i = 0; i < 3; i++) {
         int16_t coords[3] = {i, i, i};
-        geo_put(db, coords, (uint32_t)(1000 + i), 3);
+        islet_set_3(db, coords, (uint32_t)(1000 + i));
     }
     
     /* Verify updated values are retrievable */
     for (int i = 0; i < 3; i++) {
         int16_t coords[3] = {i, i, i};
-        ASSERT_EQ(geo_get(db, coords, 3), (uint32_t)(1000 + i));
+        ASSERT_EQ(islet_get_3(db, coords), (uint32_t)(1000 + i));
     }
 }
 

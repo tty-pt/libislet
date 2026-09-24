@@ -1,5 +1,5 @@
 /*
- * 3d_world.c - Realistic 3D voxel world example for libgeo
+ * 3d_world.c - Realistic 3D voxel world example for libislet
  *
  * Demonstrates a practical use case: simple voxel/block world
  * - Chunk-based world structure
@@ -15,8 +15,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <ttypt/geo.h>
-#include <ttypt/qmap.h>
+#include <ttypt/islet.h>
+#include <ttypt/pointcfg.h>
+#include <ttypt/corm.h>
 
 // Block types
 typedef enum {
@@ -49,15 +50,15 @@ uint32_t count_blocks_in_region(uint32_t db, int16_t x, int16_t y, int16_t z,
 
 int main(void)
 {
-	printf("=== Libgeo 3D Voxel World Example ===\n\n");
+	printf("=== Islet 3D Voxel World Example ===\n\n");
 
 	// Initialize
 	srand(time(NULL));
-	geo_init();
+	islet_init();
 
 	// Create world database
 	printf("Creating voxel world database...\n");
-	uint32_t world = geo_open("world.db", "voxels", 0xFFFF);  // 65k capacity
+	uint32_t world = islet_open("world.db", "voxels", 0xFFFF);  // 65k initial table
 	printf("World database created\n\n");
 
 	// Generate a 3x3 chunk area
@@ -97,7 +98,7 @@ int main(void)
 	for (int16_t x = -2; x <= 2; x++) {
 		for (int16_t z = -2; z <= 2; z++) {
 			int16_t pos[3] = {build_pos[0] + x, build_pos[1], build_pos[2] + z};
-			geo_put(world, pos, BLOCK_WOOD, 3);
+			Point3_2.put(world, pos, BLOCK_WOOD);
 		}
 	}
 	printf("  - Built 5x5 wooden platform\n");
@@ -107,8 +108,8 @@ int main(void)
 		for (int16_t x = -2; x <= 2; x++) {
 			int16_t pos1[3] = {build_pos[0] + x, build_pos[1] + y, build_pos[2] - 2};
 			int16_t pos2[3] = {build_pos[0] + x, build_pos[1] + y, build_pos[2] + 2};
-			geo_put(world, pos1, BLOCK_STONE, 3);
-			geo_put(world, pos2, BLOCK_STONE, 3);
+			Point3_2.put(world, pos1, BLOCK_STONE);
+			Point3_2.put(world, pos2, BLOCK_STONE);
 		}
 	}
 	printf("  - Built stone walls\n");
@@ -129,9 +130,9 @@ int main(void)
 		for (int16_t y = 0; y < 10; y++) {
 			for (int16_t z = 5; z < 10; z++) {
 				int16_t pos[3] = {x, y, z};
-				uint32_t block = geo_get(world, pos, 3);
-				if (block != GEO_MISS && block != BLOCK_AIR) {
-					geo_del(world, pos, 3);
+				uint32_t block = Point3_2.get(world, pos);
+				if (block != ISLET_MISS && block != BLOCK_AIR) {
+					Point3_2.del(world, pos);
 					destroyed++;
 				}
 			}
@@ -145,7 +146,7 @@ int main(void)
 
 	// Save world
 	printf("\nSaving world to disk...\n");
-	qmap_save();
+	corm_save();
 	printf("World saved to world.db:voxels\n");
 
 	printf("\n=== Example Complete ===\n");
@@ -158,7 +159,7 @@ int main(void)
 	printf("- World persistence\n");
 	printf("\nWorld file: world.db (can be deleted with: rm world.db)\n");
 
-	qmap_close(world);
+	corm_close(world);
 	return 0;
 }
 
@@ -188,13 +189,13 @@ void generate_terrain(uint32_t db, int16_t chunk_x, int16_t chunk_z)
 					block = BLOCK_STONE;  // Stone underground
 				}
 
-				geo_put(db, pos, block, 3);
+				Point3_2.put(db, pos, block);
 			}
 
 			// Occasionally place water in low areas
 			if (height < 5 && (rand() % 10) < 2) {
 				int16_t pos[3] = {x, height, z};
-				geo_put(db, pos, BLOCK_WATER, 3);
+				Point3_2.put(db, pos, BLOCK_WATER);
 			}
 
 			// Occasionally place trees on grass
@@ -202,10 +203,10 @@ void generate_terrain(uint32_t db, int16_t chunk_x, int16_t chunk_z)
 				generate_tree(db, x, height, z);
 			}
 
-			// Add sand near water level
+			// Add sand near water level (replaces the grass top)
 			if (height == 4) {
 				int16_t pos[3] = {x, height - 1, z};
-				geo_put(db, pos, BLOCK_SAND, 3);
+				Point3_2.replace(db, pos, BLOCK_SAND);
 			}
 		}
 	}
@@ -216,7 +217,7 @@ void generate_tree(uint32_t db, int16_t x, int16_t y, int16_t z)
 	// Tree trunk (3 blocks high)
 	for (int16_t dy = 0; dy < 3; dy++) {
 		int16_t pos[3] = {x, y + dy, z};
-		geo_put(db, pos, BLOCK_WOOD, 3);
+		Point3_2.put(db, pos, BLOCK_WOOD);
 	}
 
 	// Leaves (simple 3x3x2 cube on top)
@@ -225,7 +226,7 @@ void generate_tree(uint32_t db, int16_t x, int16_t y, int16_t z)
 			for (int16_t dy = 3; dy < 5; dy++) {
 				if (dx == 0 && dz == 0 && dy == 3) continue;  // Skip trunk
 				int16_t pos[3] = {x + dx, y + dy, z + dz};
-				geo_put(db, pos, BLOCK_LEAVES, 3);
+				Point3_2.put(db, pos, BLOCK_LEAVES);
 			}
 		}
 	}
@@ -242,12 +243,12 @@ void print_world_stats(uint32_t db)
 	// Sample entire generated area
 	int16_t start[3] = {-CHUNK_SIZE, 0, -CHUNK_SIZE};
 	uint16_t lengths[3] = {CHUNK_SIZE * 3, WORLD_HEIGHT, CHUNK_SIZE * 3};
-	uint32_t iter = geo_iter(db, start, lengths, 3);
+	uint32_t iter = Point3_2.iter(db, start, lengths);
 
 	int16_t point[3];
 	uint32_t value;
 
-	while (geo_next(point, &value, iter)) {
+	while (Point3_2.next(point, &value, iter)) {
 		if (value < 8) {
 			type_counts[value]++;
 		}
@@ -279,13 +280,13 @@ void render_view(uint32_t db, int16_t player_x, int16_t player_y, int16_t player
 		RENDER_DISTANCE * CHUNK_SIZE * 2
 	};
 
-	uint32_t iter = geo_iter(db, view_start, view_size, 3);
+	uint32_t iter = Point3_2.iter(db, view_start, view_size);
 
 	int16_t point[3];
 	uint32_t value;
 	uint32_t visible_blocks = 0;
 
-	while (geo_next(point, &value, iter)) {
+	while (Point3_2.next(point, &value, iter)) {
 		visible_blocks++;
 	}
 
@@ -297,9 +298,9 @@ void render_view(uint32_t db, int16_t player_x, int16_t player_y, int16_t player
 
 	// Check block at player position
 	int16_t player_pos[3] = {player_x, player_y, player_z};
-	uint32_t player_block = geo_get(db, player_pos, 3);
+	uint32_t player_block = Point3_2.get(db, player_pos);
 
-	if (player_block == GEO_MISS || player_block == BLOCK_AIR) {
+	if (player_block == ISLET_MISS || player_block == BLOCK_AIR) {
 		printf("  Block at player: Air (can move)\n");
 	} else if (player_block < 8) {
 		printf("  Block at player: %s (solid)\n", block_names[player_block]);
@@ -311,13 +312,13 @@ uint32_t count_blocks_in_region(uint32_t db, int16_t x, int16_t y, int16_t z,
 {
 	int16_t start[3] = {x, y, z};
 	uint16_t lengths[3] = {w, h, d};
-	uint32_t iter = geo_iter(db, start, lengths, 3);
+	uint32_t iter = Point3_2.iter(db, start, lengths);
 
 	uint32_t count = 0;
 	int16_t point[3];
 	uint32_t value;
 
-	while (geo_next(point, &value, iter)) {
+	while (Point3_2.next(point, &value, iter)) {
 		if (value != BLOCK_AIR) {
 			count++;
 		}
