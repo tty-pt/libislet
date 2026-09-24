@@ -1,89 +1,17 @@
-## [Unreleased]
-- BMI2 PDEP/PEXT codec fast path (`ISLET_USE_PDEP`, default 1): activates
-  only when the TU is compiled with `-mbmi2` (`__BMI2__`); the scalar
-  spread/compact bit-twiddle kernels stay as the portable fallback and
-  as the reference for bit-identity (enforced by
-  `tests/unit/test_codec_parity.c` and a bench-time cross-check).
-  Measured 2-4x on isolated encode/decode/round-trip once the paired
-  bench pre-generates inputs outside the timed loop (RNG cost otherwise
-  swamps the codec signal — see `docs/PERF.md`). Opt out with
-  `-DISLET_USE_PDEP=0` (e.g. on AMD Zen ≤3, where PDEP/PEXT are
-  microcoded and slow).
-- Bulk decode API: `morton_get_bulk()` / `morton_get_bulk4()`, the
-  decode-side counterpart to `morton_set_bulk`/`morton_set_bulk4` (same
-  `ISLET_SIMD_MORTON` gate, same AVX2/NEON-stub/scalar three-tier
-  structure). Closes the encode-only asymmetry in the bulk API.
-  Measured win is thin/noisy under `-mavx2` (same scatter-cost story as
-  the existing bulk encode); kept for API symmetry and because it's
-  never worse than the scalar tail. Parity-tested against
-  `morton_get_3`/`morton_get_4` in `test_codec_parity.c`.
-- New primary API surface: point config objects (`include/ttypt/
-  pointcfg.h`). Each config is one exported const struct — "a class with
-  all-static methods" — named `Point<D>_<B>` (D = dims, B = bytes/lane):
-  `Point1_2`, `Point2_2`, `Point3_2`, `Point4_2` (int16 lanes, shared
-  `islet_point2b_t` type) and `Point2_4` (int32 lanes, `islet_point4b_t`).
-  Each has ~20 members (codec, `add/sub/min/max/copy/vol/set/idx/debug`,
-  `put/get/replace/del/del_all/cell_count`, `get_multi` + `islet_cell_next`,
-  `iter` + fused `.next`, `fill_bbox`), so a language server
-  autocompletes the whole config off one symbol. Struct members are
-  addressable functions with the same bodies as the flat inlines; the
-  flat API stays exported and documented as the tight-loop fast path /
-  runtime-dim (`islet_ops[]`) escape hatch. Nothing removed.
-- New 2D x 32-bit dense config (`islet_*_2_32`, `morton_set_2_32` /
-  `morton_get_2_32`, `point_*_2_32`): int32_t lanes
-  (-2147483648..2147483647), dense stride-2 codec filling all 64 key
-  bits (2 x 32, no reserved bits). Box walker, Z-interval skip, fill,
-  iterate, and multi-value chains all work on 32-bit lanes with
-  int32_t start AND lengths; one cursor pool/idm serves both lane
-  widths via per-cursor copy ops. `islet_ops[]` stays int16-lane-only;
-  the new config is reached through its suffixed monomorphs, advanced
-  with `islet_next32()`, multi-values with the shared `islet_cell_next()`.
-  One config per database, never reopen with another config's API
-  (the file carries no config tag). ISLET_FILL_MAX_VOL (1M cells) caps
-  every config alike. Walker internals (`inrange`, gap jump, box
-  walk, iter/get_multi/fill stamps) are now stamped from
-  config-parametric macros; the int16 1..4 instantiations emit the
-  same expressions as before (full suite + oracle/scan-count tests
-  confirm identical walks).
-- BREAKING: per-dimension public API. The runtime-`dim` functions are
-  gone — `morton_set(p, dim)` is now `morton_set_1..4(p)`,
-  `morton_get` is now `morton_get_1..4`, every `point_*` is now
-  `point_*_1..4`, and every database op is now `islet_put_N`,
-  `islet_set_N`, `islet_get_N`, `islet_del_N`, `islet_del_all_N`,
-  `islet_cell_count_N`, `islet_get_multi_N`, `islet_iter_N`,
-  `rec_axis_fill_bbox_N` (N = 1..4, no dim argument). Invalid dims are
-  unrepresentable: dim 0/5 rejections are deleted (dim-0 table slot is
-  empty instead). Morton CODE VALUES unchanged (1D/2D/3D still
-  bit-identical to v0.5.0).
-- New `islet_ops[1..4]` runtime-dim table (`islet.h`): per-dim function
-  pointers with no dim argument (the index is the dim), covering
-  codec, point, scatter, iterate, and fill ops. `islet_ops[0]` is NULL.
-  `islet_ops[dim].morton_set(p)` is the migration path for callers with
-  a genuinely runtime dim.
-- Monomorphized box walker: `islet_box_walk_1..4` stamped from one macro
-  with literal dims (no per-iteration dim dispatch anywhere);
-  `islet_jump_over_gap` forced inline so the literal folds its k-loop
-  chain; cursor/collection carry a per-dim `point_copy` pointer.
-  Measured parity vs the generic walker on this VM (see docs/PERF.md);
-  kept for the structural win at ~19KB extra .text.
-- 4D support (dim=4): dense stride-4 Morton codec using the full 64-bit
-  key space; box walker, Z-interval skip, fill, and SIMD bulk all
-  generalized (skip-cube span is now 2^(D*k)); 1D/2D/3D codes unchanged
-- New tunables (default 0, measure-first): ISLET_SMALLDIM_UNROLL (1D/2D
-  fast paths), ISLET_4D_UNROLL (4D fast paths incl. exact 8-byte
-  point_copy); new morton_set_bulk4() batch encoder
-- Retired ISLET_PACKED_CURI (measured neutral-negative; 4D needs 4 slots
-  anyway, struct stays 12 bytes either way)
-- Retired ISLET_3D_POINT_COPY (measured consistently below 1.0x in
-  interleaved testing; plain loop restored)
-- Promoted all remaining tunables to unconditional: inline Morton codec
-  (duplicate non-inline implementation deleted, ABI wrappers kept),
-  hoisted box bounds (single gap-jump implementation), clz kmax,
-  dimension-unrolled inrange/gap-jump/point_copy (generic fallbacks
-  deleted). Only ISLET_SIMD_MORTON (batch API gate) remains tunable.
-- New docs/PERF.md: per-flag verdicts, numbers, and the VM-drift
-  benchmarking caveat; single-dimension-per-database convention
-  documented (all dims share the uint64 keyspace)
+## 1.1.0
+
+- **Renamed `libgeo` → `libislet`**: the `geo_*` API surface is now `islet_*` (`include/ttypt/islet.h`).
+- **BREAKING — per-dimension public API**: runtime-`dim` functions are gone — `morton_set(p, dim)` is now `morton_set_1..4(p)`, `morton_get` is `morton_get_1..4`, every `point_*` is `point_*_1..4`, and every database op is `islet_put_N`/`islet_set_N`/`islet_get_N`/`islet_del_N`/`islet_del_all_N`/`islet_cell_count_N`/`islet_get_multi_N`/`islet_iter_N`/`rec_axis_fill_bbox_N` (N = 1..4, no dim argument). Invalid dims are now unrepresentable. Morton code values unchanged (1D/2D/3D bit-identical to v0.5.0).
+- **New 2D × 32-bit dense config** (`islet_*_2_32`, `morton_set_2_32`/`morton_get_2_32`, `point_*_2_32`): `int32_t` lanes (−2147483648..2147483647), dense stride-2 codec filling all 64 key bits; box walker, Z-interval skip, fill, iterate and multi-value chains all support 32-bit lanes with `int32_t` start and lengths, advanced with `islet_next32`.
+- **Point config objects** (`include/ttypt/pointcfg.h`): exported const structs `Point<D>_<B>` (`Point1_2`…`Point4_2` on int16 lanes, `Point2_4` on int32 lanes), each with ~20 addressable member functions — codec, point arith, `put/get/replace/del/del_all/cell_count`, `get_multi`/`islet_cell_next`, `iter`, `fill_bbox`. The flat API stays exported as the tight-loop fast path.
+- **`islet_ops[1..4]`**: runtime-dim dispatch table (`islet_ops[0]` is NULL) covering codec, point, scatter, iterate and fill operations.
+- **Bulk decode**: `morton_get_bulk()` / `morton_get_bulk4()`, decode-side counterparts to `morton_set_bulk`/`morton_set_bulk4` (closes the encode-only asymmetry).
+- **BMI2 codec fast path**: `ISLET_USE_PDEP` (default 1, opt out with `-DISLET_USE_PDEP=0`) — PDEP/PEXT spread/compact kernels when compiled with `-mbmi2`, measured 2–4× on isolated encode/decode/round-trip; portable scalar fallback retained.
+- **Recall-kernel alignment**: refs unified to `rec_ref_t` (`uint32_t`), kernel-based axis registration and storage adapters (`rec_axis_store`/`rec_axis_unstore`/`rec_axis_readback`), axis parameters exposed as CLI parameters, plus new 2D/4D unit, property and stress test coverage.
+- `libqmap` → `libcorm` rename.
+- **Monomorphized box walker**: `islet_box_walk_1..4` stamped from one macro with literal dims (`islet_jump_over_gap` inlined so the literal folds its k-loop chain); cursors/collections carry a per-dim `point_copy`. Measured parity vs the generic walker on this VM (see `docs/PERF.md`); kept for the structural win at ~19 KB extra `.text`.
+- **4D support** (dim=4): dense stride-4 Morton codec using the full 64-bit key space; box walker, Z-interval skip, fill, and SIMD bulk all generalized (skip-cube span now `2^(D·k)`); 1D/2D/3D codes unchanged.
+- **Tunable audit**: new `ISLET_SMALLDIM_UNROLL` / `ISLET_4D_UNROLL` (default 0, measure-first) and `morton_set_bulk4()` batch encoder; `ISLET_PACKED_CURI` and `ISLET_3D_POINT_COPY` retired after measured-parity results; remaining tunables promoted to unconditional — only `ISLET_SIMD_MORTON` (batch API gate) stays tunable. New `docs/PERF.md` documents per-flag verdicts and the VM-drift benchmarking caveat, plus the single-dimension-per-database convention.
 
 ## [0.5.0] - 2026-09-10
 - Kernel form (requires libcorm >= 0.8.0): maps open CM_SORTED|CM_MULTIVALUE
