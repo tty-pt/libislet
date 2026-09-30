@@ -1,3 +1,10 @@
+## 1.1.1
+
+- Rebuild release. No source changes from 1.1.0 — the tree is identical
+  (`bf4c24a`). This re-runs the full package matrix from that commit to
+  regenerate every platform artifact, the signed `CHECKSUMS`, and the tap
+  formula.
+
 ## 1.1.0
 
 - **Renamed `libgeo` → `libislet`**: the `geo_*` API surface is now `islet_*` (`include/ttypt/islet.h`).
