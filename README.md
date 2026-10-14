@@ -1,10 +1,15 @@
+<p align="center">
+  <img src="assets/logo.png" alt="libislet logo" width="240" />
+</p>
+
 # libislet
 
 [![C99](https://img.shields.io/badge/C-C99-555?logo=c)](#)
 [![BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
+[![Recall Kernel Space Axis](https://img.shields.io/badge/axis-space-blueviolet)](#)
 
-> Spatial database library using Morton code indexing for efficient multi-dimensional coordinate queries.
+> High-performance multi-dimensional spatial database engine using Morton code (Z-order) indexing and recall kernel integration.
 
 A small library for spatial/geographic databases. Store and query data indexed
 by multi-dimensional coordinates (typically 3D) with efficient range queries
