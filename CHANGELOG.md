@@ -1,3 +1,9 @@
+## 1.2.0
+
+- **Cormr Recall Kernel Integration**: Updated headers and tests to consume `<ttypt/corm.h>` and `<ttypt/cormr.h>`, aligning with the domain-free Recall Kernel architecture.
+- **Lemma Text Indexing Alignment**: Updated ecosystem references and test fixtures from `libstoma` to `liblemma`.
+- **4D Morton Dimension Support**: Added comprehensive 4D Morton encoding property tests, fast-path benchmarks, and multi-value cell enhancements.
+
 ## 1.1.1
 
 - Rebuild release. No source changes from 1.1.0 — the tree is identical

@@ -51,7 +51,6 @@
 #include <stdint.h>
 
 #include <ttypt/islet.h>
-#include <ttypt/rec.h>
 
 /** @defgroup islet_pointcfg Config objects
  *  @brief Static-method interfaces, one object per point config.

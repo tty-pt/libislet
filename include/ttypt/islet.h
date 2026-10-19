@@ -18,7 +18,6 @@
 
 #include <stdint.h>
 #include <ttypt/corm.h>
-#include <ttypt/rec.h>
 
 /* Optimization tunable — a 0/1 flag. ISLET_SIMD_MORTON gates the batch
  * encoders (morton_set_bulk / morton_set_bulk4); it defaults to 1.
