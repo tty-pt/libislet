@@ -18,7 +18,6 @@
 
 #include <stdint.h>
 #include <ttypt/corm.h>
-#include <ttypt/rec.h>
 
 /* Optimization tunable — a 0/1 flag. ISLET_SIMD_MORTON gates the batch
  * encoders (morton_set_bulk / morton_set_bulk4); it defaults to 1.
@@ -89,7 +88,7 @@
   *  @note ID-uniformity contract (see RECALL-KERNEL.md): the per-cell
   *        stored value ("thing"/"ref") is intentionally `uint32_t`, not
   *        the wider `rec_ref_t` — which is itself `uint32_t` (from
-  *        rec.h), matching what libsepal/libstoma use natively and
+  *        rec.h), matching what libsepal/liblemma use natively and
   *        libjoint widens to at its fill boundary, so the fill widen is
   *        now an identity cast. Islet's storage/SIMD paths are
  *        tuned around the 4-byte value; doubling it is a real cost, not

@@ -8,7 +8,7 @@
 
 #include "../test_common.h"
 #include "../../include/ttypt/islet.h"
-#include <ttypt/rec.h>
+#include <ttypt/corm.h>
 #include <string.h>
 
 /* D14 axis-contributed CLI surface (dlsym'd): the contract ABI is

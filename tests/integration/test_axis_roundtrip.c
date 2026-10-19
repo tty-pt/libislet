@@ -15,7 +15,7 @@
 #include "../test_common.h"
 #include "../../include/ttypt/islet.h"
 #include <ttypt/corm.h>
-#include <ttypt/rec.h>
+#include <ttypt/corm.h>
 
 #include <sys/wait.h>
 #include <unistd.h>
