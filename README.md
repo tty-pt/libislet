@@ -17,7 +17,7 @@
 
 `libislet` functions as the canonical **Space Axis** for spatial queries and recall composition:
 - **Core Storage Engine**: Backed by [libcorm](https://github.com/tty-pt/libcorm) for sorted Morton-code map indexing.
-- **Cross-Axis Recall Kernel**: Composes spatial bounding boxes (`Point3_2.fill_bbox`) with sibling axes: [libjoint](https://github.com/tty-pt/libit) (Time), [libstoma](https://github.com/tty-pt/libstoma) (Text), and [libsepal](https://github.com/tty-pt/libsepal) (Meaning).
+- **Cross-Axis Recall Kernel**: Composes spatial bounding boxes (`Point3_2.fill_bbox`) with sibling axes: [libjoint](https://github.com/tty-pt/libit) (Time), [liblemma](https://github.com/tty-pt/liblemma) (Text), and [libsepal](https://github.com/tty-pt/libsepal) (Meaning).
 
 ---
 
