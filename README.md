@@ -13,6 +13,32 @@
 
 ---
 
+## Why libislet? (3D/4D Spatial Queries Without Database Bloat)
+
+Imagine you are building a 3D multiplayer world, robotics controller, or spatial mapping engine:
+> *"Find all players, projectiles, and interactive objects inside a 50×50×50 meter cube around the player."*
+
+Traditional spatial databases (like PostGIS or complex R-Trees) introduce pointer indirection, cache thrashing, and high memory footprints.
+
+`libislet` flattens multi-dimensional space into linear integers using **Morton Z-order space-filling curves**:
+
+```
+  Y ▲
+  3 │  10   11 │  14   15
+  2 │   8    9 │  12   13
+    ├───┼────┼─┼───┼────┤
+  1 │   2    3 │   6    7
+  0 │   0    1 │   4    5
+    └──────────┴────────► X
+        0    1    2    3
+```
+
+- **Bits Interleaved**: Coordinates $(X, Y, Z)$ are bit-interleaved into a single 64-bit integer, preserving spatial proximity in linear memory.
+- **Logarithmic Seeks**: 3D bounding box queries turn into fast binary searches along the curve, skipping aligned empty space in single jumps.
+- **Sub-Microsecond Speed**: Point insertions and range queries execute at L1/L2 cache speeds with zero heap allocations.
+
+---
+
 ## Recall Kernel (Space Axis)
 
 `libislet` functions as the canonical **Space Axis** for spatial queries and recall composition:
