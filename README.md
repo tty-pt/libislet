@@ -9,7 +9,33 @@
 [![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
 [![Recall Kernel Space Axis](https://img.shields.io/badge/axis-space-blueviolet)](#)
 
-> Multi-dimensional spatial database engine using Morton code (Z-order) indexing for lightning-fast 3D coordinate and bounding-box queries in pure C.
+> Multi-dimensional spatial database engine using Morton code (Z-order) indexing for lightning-fast 3D/4D coordinate and bounding-box queries in pure C.
+
+---
+
+## Why libislet? (3D/4D Spatial Queries Without Database Bloat)
+
+Imagine you are building a 3D multiplayer world, robotics controller, or spatial mapping engine:
+> *"Find all players, projectiles, and interactive objects inside a 50×50×50 meter cube around the player."*
+
+Traditional spatial databases (like PostGIS or complex R-Trees) introduce pointer indirection, cache thrashing, and high memory footprints.
+
+`libislet` flattens multi-dimensional space into linear integers using **Morton Z-order space-filling curves**:
+
+```
+  Y ▲
+  3 │  10   11 │  14   15
+  2 │   8    9 │  12   13
+    ├───┼────┼─┼───┼────┤
+  1 │   2    3 │   6    7
+  0 │   0    1 │   4    5
+    └──────────┴────────► X
+        0    1    2    3
+```
+
+- **Bits Interleaved**: Coordinates $(X, Y, Z)$ are bit-interleaved into a single 64-bit integer, preserving spatial proximity in linear memory.
+- **Logarithmic Seeks**: 3D bounding box queries turn into fast binary searches along the curve, skipping aligned empty space in single jumps.
+- **Sub-Microsecond Speed**: Point insertions and range queries execute at L1/L2 cache speeds with zero heap allocations.
 
 ---
 
@@ -17,13 +43,13 @@
 
 `libislet` functions as the canonical **Space Axis** for spatial queries and recall composition:
 - **Core Storage Engine**: Backed by [libcorm](https://github.com/tty-pt/libcorm) for sorted Morton-code map indexing.
-- **Cross-Axis Recall Kernel**: Composes spatial bounding boxes (`Point3_2.fill_bbox`) with sibling axes: [libjoint](https://github.com/tty-pt/libit) (Time), [liblemma](https://github.com/tty-pt/liblemma) (Text), and [libsepal](https://github.com/tty-pt/libsepal) (Meaning).
+- **Cross-Axis Recall Kernel**: Composes spatial bounding boxes (`Point3_2.fill_bbox`, `Point4_2.fill_bbox`) with sibling axes: [libjoint](https://github.com/tty-pt/libjoint) (Time), [liblemma](https://github.com/tty-pt/liblemma) (Text), and [libsepal](https://github.com/tty-pt/libsepal) (Meaning).
 
 ---
 
 ## Quickstart
 
-Index 50,000 player positions in a 3D voxel game world and query a 50×50×50 region in microseconds:
+Index 50,000 entity positions in 3D/4D space and query a bounding box in microseconds:
 
 ```c
 #include <stdio.h>
@@ -34,12 +60,12 @@ int main(void) {
     islet_init();
     uint32_t world = islet_open(NULL, NULL, 0xFFFF);
 
-    // Index player positions in 3D space: (x, y, z) -> player_id
+    // Index entity positions in 3D space: (x, y, z) -> entity_id
     int16_t pos[3] = {120, 45, -300};
-    uint32_t player_id = 99;
-    Point3_2.put(world, pos, player_id);
+    uint32_t entity_id = 99;
+    Point3_2.put(world, pos, entity_id);
 
-    // Query 50x50x50 bounding box around the player
+    // Query 50x50x50 bounding box around the entity
     int16_t box_min[3] = {100, 20, -320};
     uint16_t box_len[3] = {50, 50, 50};
     uint32_t iter = Point3_2.iter(world, box_min, box_len);
@@ -47,7 +73,7 @@ int main(void) {
     int16_t hit_pos[3];
     uint32_t hit_id;
     while (Point3_2.next(hit_pos, &hit_id, iter)) {
-        printf("Found player %u at (%d, %d, %d)\n", hit_id, hit_pos[0], hit_pos[1], hit_pos[2]);
+        printf("Found entity %u at (%d, %d, %d)\n", hit_id, hit_pos[0], hit_pos[1], hit_pos[2]);
     }
 
     return 0;
@@ -63,25 +89,28 @@ cc voxel_query.c $(pkg-config --cflags --libs islet)
 
 ## Core API (The Essential 20%)
 
-The recommended API surface uses configuration objects (`Point<D>_<B>`, e.g. `Point3_2` for 3D `int16_t` coordinates):
+The recommended API surface uses configuration descriptors (`Point<D>_<B>`, e.g. `Point3_2` for 3D and `Point4_2` for 4D `int16_t` coordinates):
 
 | Operation | Signature | Description |
 | :--- | :--- | :--- |
 | `Point3_2.put` | `Point3_2.put(db, pos[3], ref)` | Store a 32-bit reference at 3D coordinates |
-| `Point3_2.get` | `Point3_2.get(db, pos[3])` | Retrieve the reference stored at coordinates |
+| `Point3_2.get` | `Point3_2.get(db, pos[3])` | Retrieve reference stored at 3D coordinates |
 | `Point3_2.iter` | `Point3_2.iter(db, min[3], len[3])` | Open a cursor across a rectangular 3D bounding box |
 | `Point3_2.next` | `Point3_2.next(pos_out, ref_out, iter)` | Advance bounding-box cursor (1 valid, 0 done) |
-| `Point3_2.fill_bbox`| `Point3_2.fill_bbox(db, min, len, set)` | Stream all box refs directly into a sealed recall set |
+| `Point3_2.fill_bbox`| `Point3_2.fill_bbox(db, min, len, set)` | Stream all 3D box refs directly into a sealed recall candidate set |
+| `Point4_2.put` | `Point4_2.put(db, pos[4], ref)` | Store a 32-bit reference at 4D coordinates (space + scale/time) |
+| `Point4_2.fill_bbox`| `Point4_2.fill_bbox(db, min, len, set)` | Stream all 4D hypercube refs into a sealed recall set |
 
-👉 *For AVX2 SIMD Morton codecs, 4D lane configs, and benchmark numbers, see [docs/PERF.md](docs/PERF.md).*
+👉 *For AVX2 SIMD Morton codecs, multi-value cells, and benchmarks, see [docs/PERF.md](docs/PERF.md).*
 
 ---
 
 ## Design Philosophy: Locality Preserved
 
 * **Z-Order Morton Indexing**: Maps N-dimensional coordinates into a linear 64-bit integer while preserving spatial locality, enabling O(log n) tree seeks.
-* **Z-Interval Skip**: Instead of decoding every point along a curve, empty aligned bounding cubes are skipped in single jumps.
+* **Z-Interval Skip**: Instead of decoding every point along a curve, empty aligned bounding hypercubes are skipped in single jumps.
 * **Dense 16-Bit Lanes**: Full 3D coordinate ranges (-32,768 to 32,767 per axis) pack completely into a 64-bit integer, fitting CPU registers and cache lines without pointer indirection.
+* **Multi-Value Coordinate Support**: Enables multiple entities to reside at the identical coordinate cell without key collision or data loss.
 
 ---
 

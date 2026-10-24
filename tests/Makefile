@@ -1,8 +1,8 @@
 # Test suite Makefile for libislet
 
 CC = cc
-CFLAGS = -g -Wall -Wextra -Wno-unused-function -I../include -I/home/quirinpa/site/external/libcorm/include
-LDFLAGS = -L../lib -L/home/quirinpa/site/external/libcorm/lib -L/usr/lib
+CFLAGS = -g -Wall -Wextra -Wno-unused-function -I../include -I../../libcorm/include
+LDFLAGS = -L../lib -L../../libcorm/lib -L/usr/lib
 LDLIBS = -lislet -lcorm -lqsys -lxxhash
 # Fresh ../lib must win over any stale /lib/libislet.so shadow.
 export LD_LIBRARY_PATH := $(abspath ../lib):$(abspath ../../libcorm/lib):$(LD_LIBRARY_PATH)

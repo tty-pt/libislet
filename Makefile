@@ -1,7 +1,7 @@
 all := libislet
 LDLIBS-libislet := -lqsys -lcorm
 CFLAGS := -g
-CFLAGS += -I/home/quirinpa/site/external/libcorm/include
+add-prefix := ../libcorm
 
 -include ../mk/include.mk
 
