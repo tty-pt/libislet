@@ -1,17 +1,23 @@
-## 1.2.0
+## [1.2.1]
+
+- **Build Portability & Linker Purity**:
+  - Removed hardcoded `/home/quirinpa/.local/lib` RUNPATH and in-tree paths from root and test Makefiles.
+  - Standardized portable `-I` include prefixes across test suites.
+
+## [1.2.0]
 
 - **Cormr Recall Kernel Integration**: Updated headers and tests to consume `<ttypt/corm.h>` and `<ttypt/cormr.h>`, aligning with the domain-free Recall Kernel architecture.
 - **Lemma Text Indexing Alignment**: Updated ecosystem references and test fixtures from `libstoma` to `liblemma`.
 - **4D Morton Dimension Support**: Added comprehensive 4D Morton encoding property tests, fast-path benchmarks, and multi-value cell enhancements.
 
-## 1.1.1
+## [1.1.1]
 
 - Rebuild release. No source changes from 1.1.0 — the tree is identical
   (`bf4c24a`). This re-runs the full package matrix from that commit to
   regenerate every platform artifact, the signed `CHECKSUMS`, and the tap
   formula.
 
-## 1.1.0
+## [1.1.0]
 
 - **Renamed `libgeo` → `libislet`**: the `geo_*` API surface is now `islet_*` (`include/ttypt/islet.h`).
 - **BREAKING — per-dimension public API**: runtime-`dim` functions are gone — `morton_set(p, dim)` is now `morton_set_1..4(p)`, `morton_get` is `morton_get_1..4`, every `point_*` is `point_*_1..4`, and every database op is `islet_put_N`/`islet_set_N`/`islet_get_N`/`islet_del_N`/`islet_del_all_N`/`islet_cell_count_N`/`islet_get_multi_N`/`islet_iter_N`/`rec_axis_fill_bbox_N` (N = 1..4, no dim argument). Invalid dims are now unrepresentable. Morton code values unchanged (1D/2D/3D bit-identical to v0.5.0).
