@@ -1,4 +1,4 @@
-## [1.2.1]
+## [1.3.0]
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/tty-pt/libislet/main/assets/logo.png" alt="libislet logo" width="240" />
