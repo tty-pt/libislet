@@ -92,7 +92,17 @@ The recommended API surface uses configuration descriptors (`Point<D>_<B>`, e.g.
 
 ---
 
-## 4. Recall Kernel (Space Axis)
+## 4. `corm` CLI Multi-Axis Integration
+
+`libislet` attaches directly to the `corm` CLI tool as the `@islet` spatial axis:
+
+```bash
+# Ingest 3D coordinates into database:
+corm -p "120,45,-300:player_99" world.db@islet:a:s
+
+# Spatial bounding box query via corm CLI:
+corm -X "islet" --islet="bbox:100,20,-320,50,50,50" world.db@islet:a:s
+```
 
 `libislet` functions as the canonical **Space Axis** for spatial queries and recall composition:
 - **Core Storage Engine**: Backed by [libcorm](https://github.com/tty-pt/libcorm) for sorted Morton-code map indexing.
