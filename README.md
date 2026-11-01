@@ -4,52 +4,19 @@
 
 # libislet
 
+[![npm](https://img.shields.io/badge/npm-@ttypt/islet-CB3837?logo=npm)](npm/README.md)
 [![C99](https://img.shields.io/badge/C-C99-555?logo=c)](#)
 [![BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
 [![Recall Kernel Space Axis](https://img.shields.io/badge/axis-space-blueviolet)](#)
 
-> Multi-dimensional spatial database engine using Morton code (Z-order) indexing for lightning-fast 3D/4D coordinate and bounding-box queries in pure C.
+> Multi-dimensional spatial database engine using Morton code (Z-order) indexing for lightning-fast 3D/4D coordinate and bounding-box queries in pure C. Canonical header is `<ttypt/pointcfg.h>`.
 
 ---
 
-## Why libislet? (3D/4D Spatial Queries Without Database Bloat)
+## 1. Quickstart
 
-Imagine you are building a 3D multiplayer world, robotics controller, or spatial mapping engine:
-> *"Find all players, projectiles, and interactive objects inside a 50×50×50 meter cube around the player."*
-
-Traditional spatial databases (like PostGIS or complex R-Trees) introduce pointer indirection, cache thrashing, and high memory footprints.
-
-`libislet` flattens multi-dimensional space into linear integers using **Morton Z-order space-filling curves**:
-
-```
-  Y ▲
-  3 │  10   11 │  14   15
-  2 │   8    9 │  12   13
-    ├───┼────┼─┼───┼────┤
-  1 │   2    3 │   6    7
-  0 │   0    1 │   4    5
-    └──────────┴────────► X
-        0    1    2    3
-```
-
-- **Bits Interleaved**: Coordinates $(X, Y, Z)$ are bit-interleaved into a single 64-bit integer, preserving spatial proximity in linear memory.
-- **Logarithmic Seeks**: 3D bounding box queries turn into fast binary searches along the curve, skipping aligned empty space in single jumps.
-- **Sub-Microsecond Speed**: Point insertions and range queries execute at L1/L2 cache speeds with zero heap allocations.
-
----
-
-## Recall Kernel (Space Axis)
-
-`libislet` functions as the canonical **Space Axis** for spatial queries and recall composition:
-- **Core Storage Engine**: Backed by [libcorm](https://github.com/tty-pt/libcorm) for sorted Morton-code map indexing.
-- **Cross-Axis Recall Kernel**: Composes spatial bounding boxes (`Point3_2.fill_bbox`, `Point4_2.fill_bbox`) with sibling axes: [libjoint](https://github.com/tty-pt/libjoint) (Time), [liblemma](https://github.com/tty-pt/liblemma) (Text), and [libsepal](https://github.com/tty-pt/libsepal) (Meaning).
-
----
-
-## Quickstart
-
-Index 50,000 entity positions in 3D/4D space and query a bounding box in microseconds:
+Index 3D/4D entity positions and query a bounding box in under 20 lines:
 
 ```c
 #include <stdio.h>
@@ -82,12 +49,12 @@ int main(void) {
 
 Compile and link:
 ```sh
-cc voxel_query.c $(pkg-config --cflags --libs islet)
+cc voxel_query.c $(pkg-config --cflags --libs libislet) -o voxel_query
 ```
 
 ---
 
-## Core API (The Essential 20%)
+## 2. Core API Reference
 
 The recommended API surface uses configuration descriptors (`Point<D>_<B>`, e.g. `Point3_2` for 3D and `Point4_2` for 4D `int16_t` coordinates):
 
@@ -105,16 +72,46 @@ The recommended API surface uses configuration descriptors (`Point<D>_<B>`, e.g.
 
 ---
 
-## Design Philosophy: Locality Preserved
+## 3. Morton Z-Order Spatial Indexing
 
-* **Z-Order Morton Indexing**: Maps N-dimensional coordinates into a linear 64-bit integer while preserving spatial locality, enabling O(log n) tree seeks.
-* **Z-Interval Skip**: Instead of decoding every point along a curve, empty aligned bounding hypercubes are skipped in single jumps.
-* **Dense 16-Bit Lanes**: Full 3D coordinate ranges (-32,768 to 32,767 per axis) pack completely into a 64-bit integer, fitting CPU registers and cache lines without pointer indirection.
-* **Multi-Value Coordinate Support**: Enables multiple entities to reside at the identical coordinate cell without key collision or data loss.
+`libislet` flattens multi-dimensional space into linear integers using **Morton Z-order space-filling curves**:
+
+```
+  Y ▲
+  3 │  10   11 │  14   15
+  2 │   8    9 │  12   13
+    ├───┼────┼─┼───┼────┤
+  1 │   2    3 │   6    7
+  0 │   0    1 │   4    5
+    └──────────┴────────► X
+        0    1    2    3
+```
+
+- **Bits Interleaved**: Coordinates $(X, Y, Z)$ are bit-interleaved into a single 64-bit integer, preserving spatial proximity in linear memory.
+- **Logarithmic Seeks**: 3D bounding box queries turn into fast binary searches along the curve, skipping aligned empty space in single jumps.
+- **Sub-Microsecond Speed**: Point insertions and range queries execute at CPU cache speeds with zero heap allocations.
 
 ---
 
-## Installation & Build
+## 4. `corm` CLI Multi-Axis Integration
+
+`libislet` attaches directly to the `corm` CLI tool as the `@islet` spatial axis:
+
+```bash
+# Ingest 3D coordinates into database:
+corm -p "120,45,-300:player_99" world.db@islet:a:s
+
+# Spatial bounding box query via corm CLI:
+corm -X "islet" --islet="bbox:100,20,-320,50,50,50" world.db@islet:a:s
+```
+
+`libislet` functions as the canonical **Space Axis** for spatial queries and recall composition:
+- **Core Storage Engine**: Backed by [libcorm](https://github.com/tty-pt/libcorm) for sorted Morton-code map indexing.
+- **Cross-Axis Recall Kernel**: Composes spatial bounding boxes (`Point3_2.fill_bbox`, `Point4_2.fill_bbox`) with sibling axes: [libjoint](https://github.com/tty-pt/libjoint) (Time), [liblemma](https://github.com/tty-pt/liblemma) (Text), and [libsepal](https://github.com/tty-pt/libsepal) (Meaning).
+
+---
+
+## 5. Installation & Build
 
 ### Prebuilt Packages
 Prebuilt packages are distributed from tty.pt for Linux (APT / Alpine / Arch / Fedora-RHEL), macOS (Homebrew), Windows (winget / MSYS2), and OpenBSD. Follow the [installation instructions](https://github.com/tty-pt/ci/blob/main/docs/install.md) and use **libislet** as the package name.
@@ -125,6 +122,17 @@ make                  # builds lib/libislet.so
 make test             # run unit, integration, and stress tests
 sudo make install     # install headers and library to system
 ```
+
+---
+
+## 6. JavaScript & WebAssembly Bindings (@ttypt/islet)
+
+Official Node.js and Browser WebAssembly bindings are colocated in [`npm/`](npm/README.md):
+- **Universal Engine**: Native Node-API (`.node`) and pre-compiled WebAssembly (`dist/islet.wasm`) for 2D/3D Morton code encoding and bounding-box queries.
+- **Spatial Use Cases**: Coworking floorplans, seat map selection, canvas viewport entity culling at 120 FPS.
+- **C Development Headers**: Install via `npm install @ttypt/islet` and consume headers from `node_modules/@ttypt/islet/include`.
+
+👉 *For complete TypeScript usage, spatial indexing guides, and API reference, see [npm/README.md](npm/README.md).*
 
 ## License
 

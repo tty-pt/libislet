@@ -1,9 +1,5 @@
 ## [1.3.0]
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/tty-pt/libislet/main/assets/logo.png" alt="libislet logo" width="240" />
-</p>
-
 - **Build Portability & Linker Purity**:
   - Removed hardcoded `/home/quirinpa/.local/lib` RUNPATH and in-tree paths from root and test Makefiles.
   - Standardized portable `-I` include prefixes across test suites.

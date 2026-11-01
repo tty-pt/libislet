@@ -1,0 +1,10 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libislet
+Description: Spatial database library using Morton code indexing
+Version: 1.3.0
+Libs: -L${libdir} -lqsys -lcorm
+Cflags: -I${includedir}
