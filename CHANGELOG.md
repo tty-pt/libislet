@@ -1,21 +1,16 @@
-## [1.3.0]
+## [1.3.2] - 2026-11-03
 
-- **Build Portability & Linker Purity**:
-  - Removed hardcoded `/home/quirinpa/.local/lib` RUNPATH and in-tree paths from root and test Makefiles.
-  - Standardized portable `-I` include prefixes across test suites.
+- **Standalone `@tty-pt/islet` Package & Pure WebAssembly Engine**:
+  - Published `@tty-pt/islet` providing Node-API native bindings and pure WebAssembly fallback (`islet.wasm`).
+  - Added `npm/wasm/islet_wasm.c` exposing 2D/3D Morton encoding (`morton_set_2`, `morton_get_2`, `morton_set_3`, `morton_get_3`) using `ISO_EXPORT`.
+  - Adopted strict `peerDependencies` (`@tty-pt/stele: ">=1.5.0"`, `@tty-pt/corm: ">=2.2.0"`) and `devDependencies` (`@tty-pt/stele: "^1.5.2"`, `@tty-pt/corm: "^2.2.4"`).
+  - Migrated build to centralized `make wasm` rule in `external/mk/include.mk` with `-ffreestanding -flto -O3` and post-link `wasm-opt -O3` optimization.
 
 ## [1.2.0]
 
 - **Cormr Recall Kernel Integration**: Updated headers and tests to consume `<ttypt/corm.h>` and `<ttypt/cormr.h>`, aligning with the domain-free Recall Kernel architecture.
 - **Lemma Text Indexing Alignment**: Updated ecosystem references and test fixtures from `libstoma` to `liblemma`.
 - **4D Morton Dimension Support**: Added comprehensive 4D Morton encoding property tests, fast-path benchmarks, and multi-value cell enhancements.
-
-## [1.1.1]
-
-- Rebuild release. No source changes from 1.1.0 — the tree is identical
-  (`bf4c24a`). This re-runs the full package matrix from that commit to
-  regenerate every platform artifact, the signed `CHECKSUMS`, and the tap
-  formula.
 
 ## [1.1.0]
 
@@ -28,52 +23,3 @@
 - **BMI2 codec fast path**: `ISLET_USE_PDEP` (default 1, opt out with `-DISLET_USE_PDEP=0`) — PDEP/PEXT spread/compact kernels when compiled with `-mbmi2`, measured 2–4× on isolated encode/decode/round-trip; portable scalar fallback retained.
 - **Recall-kernel alignment**: refs unified to `rec_ref_t` (`uint32_t`), kernel-based axis registration and storage adapters (`rec_axis_store`/`rec_axis_unstore`/`rec_axis_readback`), axis parameters exposed as CLI parameters, plus new 2D/4D unit, property and stress test coverage.
 - `libqmap` → `libcorm` rename.
-- **Monomorphized box walker**: `islet_box_walk_1..4` stamped from one macro with literal dims (`islet_jump_over_gap` inlined so the literal folds its k-loop chain); cursors/collections carry a per-dim `point_copy`. Measured parity vs the generic walker on this VM (see `docs/PERF.md`); kept for the structural win at ~19 KB extra `.text`.
-- **4D support** (dim=4): dense stride-4 Morton codec using the full 64-bit key space; box walker, Z-interval skip, fill, and SIMD bulk all generalized (skip-cube span now `2^(D·k)`); 1D/2D/3D codes unchanged.
-- **Tunable audit**: new `ISLET_SMALLDIM_UNROLL` / `ISLET_4D_UNROLL` (default 0, measure-first) and `morton_set_bulk4()` batch encoder; `ISLET_PACKED_CURI` and `ISLET_3D_POINT_COPY` retired after measured-parity results; remaining tunables promoted to unconditional — only `ISLET_SIMD_MORTON` (batch API gate) stays tunable. New `docs/PERF.md` documents per-flag verdicts and the VM-drift benchmarking caveat, plus the single-dimension-per-database convention.
-
-## [0.5.0] - 2026-09-10
-- Kernel form (requires libcorm >= 0.8.0): maps open CM_SORTED|CM_MULTIVALUE
-  - Multi-value cells: islet_put appends; new islet_set (replace), islet_get_multi /
-    islet_cell_next (chain read in insertion order), islet_cell_count, islet_del_all
-  - islet_get returns the first value; islet_del removes the first value
-  - New rec_axis_fill_bbox(): stream a bounding box into a sealed rec_set_t
-    (sorted + deduped), never materializing the box volume; ISLET_FILL_MAX_VOL
-    (1M cells) cap with -1 errors; plain int return
-- Raw iterator restructured: flat (point, value) list in morton-discovery
-  order (matches the long-standing doc claim), grown on demand — no more
-  volume-sized array, sparse queries over huge boxes stay cheap
-- Z-interval skip: box walks ratchet a skip floor past the largest
-  box-disjoint aligned cube at each false positive (provably sound; replaces
-  the dead COMPUTE_BMLM path, whose constants were wrong); islet_last_scan_count
-  diagnostic proves engagement
-- Docs: capacity claims fixed (mask = initial table, map auto-grows, no
-  termination); islet.pc version synced
-- Tests: 10 MV unit + 11 fill unit + 7 range unit (brute-force oracle,
-  mutation-validated) + parity integration + MV persistence + randomized
-  fill/range property oracles + fill/sparse benches; asan/ubsan clean
-
-## [0.4.1] - 2026-02-23
-- Fix islet_iter segfaults: add bounds checking in islet_search()
-- Fix 2D/1D Morton encoding: use dimension-specific pack functions
-- Fix ISLET_MISS: now returns UINT32_MAX (was incorrectly defined as 64-bit)
-
-## [0.4.0] - 2026-02-23
-- Add comprehensive test suite
-  - Unit tests: 65 tests for core functions (morton, point, islet)
-  - Integration tests: 13 tests for iteration, persistence, queries
-  - Property-based tests: 12K+ assertions for morton invariants
-  - Stress tests: 11 tests for capacity and large datasets
-  - Benchmarks: 4 benchmarks for performance measurement
-  - Fuzz tests: 3 harnesses with libFuzzer support
-- Add 'make test' target to root Makefile
-- Update README with testing documentation
-
-## [0.3.0] - 2026-02-23
-- Update to libcorm 0.6.0
-  - Improved pointer stability via allocation reuse optimization
-  - File loading no longer requires CM_MIRROR flag
-  - Enhanced documentation and bug fixes
-
-## [0.2.0] - 2025-10-24
-- Update to libcorm 0.5.0 (BTREE support)

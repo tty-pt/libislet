@@ -3,7 +3,7 @@
 CC := cc
 CFLAGS := -g -Wall -Wextra -I../include
 LDFLAGS := -L../lib -L/usr/lib
-LDLIBS := -lislet -lqmap -lqsys -lxxhash
+LDLIBS := -lislet -lqmap -lstele -lxxhash
 
 EXAMPLES := basic iteration persistence 3d_world
 

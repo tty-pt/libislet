@@ -300,7 +300,7 @@ make bench
 # BMI2 paired bench row (bench_morton) and bulk decode bench need the
 # flags at bench compile time, e.g.:
 cc -O3 -mbmi2 -Iinclude tests/benchmark/bench_morton.c -o /tmp/bm \
-    -Llib -lislet -lcorm -lqsys -lxxhash && LD_LIBRARY_PATH=lib /tmp/bm
+    -Llib -lislet -lcorm -lstele -lxxhash && LD_LIBRARY_PATH=lib /tmp/bm
 # sanitizers
 make -C tests asan && make -C tests test-unit
 make -C tests ubsan && make -C tests test-unit

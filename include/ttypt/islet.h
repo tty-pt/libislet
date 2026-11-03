@@ -13,7 +13,7 @@
  * suitable for game worlds, voxel engines, and spatial simulations.
  *
  * @note Depends on libcorm >= 0.8.0 (per-key multi-value chains,
- *       corm_get_multi, rec.h) and libqsys.
+ *       corm_get_multi, rec.h) and libstele.
  */
 
 #include <stdint.h>

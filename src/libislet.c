@@ -17,7 +17,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include <ttypt/qsys.h>
+#include <ttypt/stele.h>
 #include <ttypt/idm.h>
 
 #define MAX_DIM 4
