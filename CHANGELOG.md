@@ -1,3 +1,10 @@
+## [1.3.1] - 2026-11-03
+
+- **Standalone `@tty-pt/islet` Package & Pure WebAssembly Engine**:
+  - Published `@tty-pt/islet` providing Node-API native bindings and pure WebAssembly fallback (`islet.wasm`).
+  - Added `npm/wasm/islet_wasm.c` exposing 2D/3D Morton encoding (`morton_set_2`, `morton_get_2`, `morton_set_3`, `morton_get_3`) using `ISO_EXPORT`.
+  - Migrated build to centralized `make wasm` rule in `external/mk/include.mk` with `-ffreestanding -flto -O3` and post-link `wasm-opt -O3` optimization.
+
 ## [1.3.0]
 
 - **Build Portability & Linker Purity**:

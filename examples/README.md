@@ -121,7 +121,7 @@ rm world.db
 These examples require:
 - libislet (built from parent directory)
 - libcorm >= 0.6.0
-- libqsys
+- libstele
 - libxxhash
 
 Ensure you've built and installed the main libislet library before compiling examples:

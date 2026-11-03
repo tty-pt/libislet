@@ -4,7 +4,7 @@
 
 # libislet
 
-[![npm](https://img.shields.io/badge/npm-@ttypt/islet-CB3837?logo=npm)](npm/README.md)
+[![npm](https://img.shields.io/badge/npm-@tty-pt/islet-CB3837?logo=npm)](npm/README.md)
 [![C99](https://img.shields.io/badge/C-C99-555?logo=c)](#)
 [![BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
@@ -125,12 +125,12 @@ sudo make install     # install headers and library to system
 
 ---
 
-## 6. JavaScript & WebAssembly Bindings (@ttypt/islet)
+## 6. JavaScript & WebAssembly Bindings (@tty-pt/islet)
 
 Official Node.js and Browser WebAssembly bindings are colocated in [`npm/`](npm/README.md):
 - **Universal Engine**: Native Node-API (`.node`) and pre-compiled WebAssembly (`dist/islet.wasm`) for 2D/3D Morton code encoding and bounding-box queries.
 - **Spatial Use Cases**: Coworking floorplans, seat map selection, canvas viewport entity culling at 120 FPS.
-- **C Development Headers**: Install via `npm install @ttypt/islet` and consume headers from `node_modules/@ttypt/islet/include`.
+- **C Development Headers**: Install via `npm install @tty-pt/islet` and consume headers from `node_modules/@tty-pt/islet/include`.
 
 👉 *For complete TypeScript usage, spatial indexing guides, and API reference, see [npm/README.md](npm/README.md).*
 

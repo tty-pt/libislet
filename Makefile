@@ -1,7 +1,8 @@
 all := libislet
-LDLIBS-libislet := -lqsys -lcorm
+LDLIBS-libislet := -lstele -lcorm
 CFLAGS := -g
-add-prefix := ../libcorm
+
+WASM_SRCS := npm/wasm/islet_wasm.c
 
 -include ../mk/include.mk
 

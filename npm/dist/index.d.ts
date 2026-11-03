@@ -1,5 +1,7 @@
 export declare function encodeMorton2D(x: number, y: number): bigint;
 export declare function decodeMorton2D(code: bigint): { x: number; y: number };
+export declare function encodeMorton3D(x: number, y: number, z: number): bigint;
+export declare function decodeMorton3D(code: bigint): { x: number; y: number; z: number };
 
 export declare class SpatialIndex {
   constructor(filePath?: string, dbName?: string);
