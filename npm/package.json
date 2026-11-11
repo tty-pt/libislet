@@ -1,6 +1,6 @@
 {
   "name": "@tty-pt/islet",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "type": "module",
   "description": "Universal Node.js and Browser bindings for libislet Spatial Indexing & Morton Z-Order Curves",
   "main": "dist/index.js",

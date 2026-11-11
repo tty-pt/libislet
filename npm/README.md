@@ -4,7 +4,7 @@
 
 # @tty-pt/islet
 
-[![npm version](https://img.shields.io/badge/npm-v1.3.2-CB3837?logo=npm)](#)
+[![npm version](https://img.shields.io/badge/npm-v1.4.0-CB3837?logo=npm)](#)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![TypeScript Ready](https://img.shields.io/badge/TypeScript-Ready-3178C6?logo=typescript)](#)
 [![Node.js Native](https://img.shields.io/badge/Node.js-N--API-339933?logo=node.js)](#)

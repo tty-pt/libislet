@@ -6,7 +6,7 @@ WASM_SRCS := npm/wasm/islet_wasm.c
 
 -include ../mk/include.mk
 
-test:
+test: all
 	$(MAKE) -C tests test
 
 bench:
