@@ -1,4 +1,4 @@
-## [Unreleased] (target: v1.4.0)
+## [1.4.0] - 2026-11-13
 
 ### Added
 - **Morton Box Emptiness Test (`include/ttypt/islet.h`, `src/libislet.c`)**:
