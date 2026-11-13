@@ -1,3 +1,9 @@
+## [1.5.1] - 2026-11-13
+
+- **Disjoint Global-Base & Shared-Memory Reactor (`islet.wasm`)**:
+  - Rebuilt `islet.wasm` shared-memory reactor at a disjoint `--global-base=1048576` to prevent static data segment collisions across co-loaded WASM modules.
+  - Upgraded `@tty-pt/corm` to `>=2.3.2` (`^2.3.2`) and `@tty-pt/stele` to `>=1.6.1` (`^1.6.1`).
+
 ## [1.5.0] - 2026-11-13
 
 - **Minor Version Bump**:
