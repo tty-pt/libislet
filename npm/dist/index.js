@@ -12,8 +12,8 @@ export function getIsletWasm() {
 /**
  * Encode 2D point (x, y) into 64-bit Morton Z-order code strictly via WebAssembly
  */
-export function encodeMorton2D(x, y) {
-  if (nativeBinding && nativeBinding.encode2D) {
+export function encodeMorton2D(x, y, options = {}) {
+  if (!options.wasm && nativeBinding && nativeBinding.encode2D) {
     return nativeBinding.encode2D(x, y);
   }
   const wasm = getIsletWasm();
@@ -23,8 +23,8 @@ export function encodeMorton2D(x, y) {
 /**
  * Decode 64-bit Morton Z-order code into 2D point { x, y } strictly via WebAssembly
  */
-export function decodeMorton2D(code) {
-  if (nativeBinding && nativeBinding.decode2D) {
+export function decodeMorton2D(code, options = {}) {
+  if (!options.wasm && nativeBinding && nativeBinding.decode2D) {
     return nativeBinding.decode2D(code);
   }
   const wasm = getIsletWasm();
