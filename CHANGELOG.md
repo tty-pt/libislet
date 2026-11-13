@@ -1,3 +1,10 @@
+## [Unreleased] (target: v1.4.0)
+
+### Added
+- **Morton Box Emptiness Test (`include/ttypt/islet.h`, `src/libislet.c`)**:
+  - Implemented `islet_box_is_empty` for rapid Morton box spatial query tests.
+  - Added unit test suite in `tests/unit/test_islet_core.c`.
+
 ## [1.3.2] - 2026-11-03
 
 - **Standalone `@tty-pt/islet` Package & Pure WebAssembly Engine**:
