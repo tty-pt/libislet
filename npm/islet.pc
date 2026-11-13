@@ -5,6 +5,6 @@ includedir=${prefix}/include
 
 Name: libislet
 Description: Spatial database library using Morton code indexing
-Version: 1.5.1
+Version: 1.5.2
 Libs: -L${libdir} -lstele -lcorm
 Cflags: -I${includedir}
