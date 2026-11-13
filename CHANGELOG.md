@@ -1,3 +1,8 @@
+## [1.4.1] - 2026-11-13
+
+- **Version & Pkg-Config Sync**:
+  - Synced `islet.pc` and `npm/package.json` to 1.4.1.
+
 ## [1.4.0] - 2026-11-13
 
 - **Substrate & Corm v2.3.1 Alignment**:
