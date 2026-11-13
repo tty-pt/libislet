@@ -1,3 +1,8 @@
+## [1.5.0] - 2026-11-13
+
+- **Minor Version Bump**:
+  - Bumped version to 1.5.0 across `islet.pc`, `npm/islet.pc`, and `npm/package.json`.
+
 ## [1.4.1] - 2026-11-13
 
 - **Version & Pkg-Config Sync**:
