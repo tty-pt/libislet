@@ -1,5 +1,7 @@
 ## [1.4.0] - 2026-11-13
 
+- **Substrate & Corm v2.3.1 Alignment**:
+  - Upgraded dependencies to @tty-pt/corm@^2.3.1 (>=2.3.1) and @tty-pt/stele@^1.6.0 (>=1.6.0).
 ### Added
 - **Morton Box Emptiness Test (`include/ttypt/islet.h`, `src/libislet.c`)**:
   - Implemented `islet_box_is_empty` for rapid Morton box spatial query tests.
