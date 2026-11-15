@@ -1,3 +1,8 @@
+## [1.6.2] - 2026-11-15
+
+- **Quadtree Spatial Headers & Morton Box Emptiness (`include/ttypt/islet_quad.h`, `npm/include/ttypt/islet_quad.h`, `include/ttypt/islet.h`)**:
+  - Packaged `<ttypt/islet_quad.h>` (`morton_quad_pack`, `morton_quad_unpack`, `morton_quad_parent`, `morton_quad_child`, `islet_quad_map_*`) and `islet_box_is_empty` in the published release.
+
 ## [1.6.1] - 2026-11-14
 
 - **Packaging (`npm/package.json`)**:
