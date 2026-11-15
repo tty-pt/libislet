@@ -5,9 +5,10 @@
 
 ## [1.6.0] - 2026-11-14
 
-- **Complete Node-API Bindings & IsletSpatialAxis (`npm/native/islet_napi.c`, `npm/dist/index.js`)**:
+- **Complete Node-API Bindings, `IsletSpatialAxis` & Quadtree Hash Primitives (`include/ttypt/islet_quad.h`, `npm/native/islet_napi.c`, `npm/dist/index.js`)**:
   - Bound `encode3D`, `decode3D`, `searchBox` (`islet_iter_2` / `islet_next`), `del2D`, `close`, and `axisStore`/`axisUnstore` in `islet_napi.c`.
   - Exported `IsletSpatialAxis` and removed `_memPoints` JS `Map` fallback in `SpatialIndex`.
+  - Added `<ttypt/islet_quad.h>` header-only 2D hierarchical Morton quadtree key packing (`morton_quad_pack`, `morton_quad_unpack`, `morton_quad_parent`, `morton_quad_child`) and open-addressed power-of-two spatial hash table (`islet_quad_map_*`) across levels `[0..16]`.
   - Requires `@tty-pt/corm` >=2.4.0 (`^2.4.0`) and `@tty-pt/stele` >=1.7.0 (`^1.7.0`).
 
 ## [1.5.2] - 2026-11-13
