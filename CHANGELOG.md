@@ -1,3 +1,46 @@
+## [1.6.1] - 2026-11-14
+
+- **Packaging (`npm/package.json`)**:
+  - Explicitly included `"prebuilds"` in `npm/package.json` `"files"`.
+
+## [1.6.0] - 2026-11-14
+
+- **Complete Node-API Bindings & IsletSpatialAxis (`npm/native/islet_napi.c`, `npm/dist/index.js`)**:
+  - Bound `encode3D`, `decode3D`, `searchBox` (`islet_iter_2` / `islet_next`), `del2D`, `close`, and `axisStore`/`axisUnstore` in `islet_napi.c`.
+  - Exported `IsletSpatialAxis` and removed `_memPoints` JS `Map` fallback in `SpatialIndex`.
+  - Requires `@tty-pt/corm` >=2.4.0 (`^2.4.0`) and `@tty-pt/stele` >=1.7.0 (`^1.7.0`).
+
+## [1.5.2] - 2026-11-13
+
+- **Packaging**:
+  - Requires `@tty-pt/corm` >=2.3.3 (`^2.3.3`) and `@tty-pt/stele` >=1.6.2 (`^1.6.2`).
+  - The npm tarball is built once by CI, with a self-contained native addon per platform (`prebuilds/<os>-<cpu>/`) next to `islet.wasm`, and published as verified.
+
+## [1.5.1] - 2026-11-13
+
+- **Disjoint Global-Base & Shared-Memory Reactor (`islet.wasm`)**:
+  - Rebuilt `islet.wasm` shared-memory reactor at a disjoint `--global-base=1048576` to prevent static data segment collisions across co-loaded WASM modules.
+  - Upgraded `@tty-pt/corm` to `>=2.3.2` (`^2.3.2`) and `@tty-pt/stele` to `>=1.6.1` (`^1.6.1`).
+
+## [1.5.0] - 2026-11-13
+
+- **Minor Version Bump**:
+  - Bumped version to 1.5.0 across `islet.pc`, `npm/islet.pc`, and `npm/package.json`.
+
+## [1.4.1] - 2026-11-13
+
+- **Version & Pkg-Config Sync**:
+  - Synced `islet.pc` and `npm/package.json` to 1.4.1.
+
+## [1.4.0] - 2026-11-13
+
+- **Substrate & Corm v2.3.1 Alignment**:
+  - Upgraded dependencies to @tty-pt/corm@^2.3.1 (>=2.3.1) and @tty-pt/stele@^1.6.0 (>=1.6.0).
+### Added
+- **Morton Box Emptiness Test (`include/ttypt/islet.h`, `src/libislet.c`)**:
+  - Implemented `islet_box_is_empty` for rapid Morton box spatial query tests.
+  - Added unit test suite in `tests/unit/test_islet_core.c`.
+
 ## [1.3.2] - 2026-11-03
 
 - **Standalone `@tty-pt/islet` Package & Pure WebAssembly Engine**:

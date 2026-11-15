@@ -337,6 +337,28 @@ TEST(islet_value_range) {
     ASSERT_EQ(islet_get_3(db, pos3), 12345678);
 }
 
+/* Test islet_box_is_empty */
+TEST(islet_box_is_empty_test) {
+    setup_once();
+    uint32_t db = islet_open(NULL, "test_box_empty", 1023);
+
+    /* Empty box returns true */
+    ASSERT(islet_box_is_empty(db, 0, 0, 64) == true);
+    ASSERT(islet_box_is_empty(db, -100, -100, 32) == true);
+
+    /* Put point at (10, 20) */
+    int16_t pos[2] = { 10, 20 };
+    islet_put_2(db, pos, 42);
+
+    /* Box covering (10, 20) is not empty */
+    ASSERT(islet_box_is_empty(db, 0, 0, 64) == false);
+    ASSERT(islet_box_is_empty(db, 10, 20, 1) == false);
+
+    /* Box disjoint from (10, 20) is empty */
+    ASSERT(islet_box_is_empty(db, 100, 100, 64) == true);
+    ASSERT(islet_box_is_empty(db, -50, -50, 20) == true);
+}
+
 int main(void) {
     test_suite_begin("Islet Core API Unit Tests");
     
@@ -358,6 +380,7 @@ int main(void) {
     /* islet_2d_operations - DISABLED: libislet is 3D-only with FAST_MORTON */
     RUN_TEST(islet_iter_exact_bounds);
     RUN_TEST(islet_value_range);
-    
+    RUN_TEST(islet_box_is_empty_test);
+
     return test_suite_end();
 }

@@ -4,7 +4,7 @@
 
 # libislet
 
-[![npm](https://img.shields.io/badge/npm-@tty-pt/islet-CB3837?logo=npm)](npm/README.md)
+[![npm](https://img.shields.io/badge/npm-@tty--pt/islet-CB3837?logo=npm)](npm/README.md)
 [![C99](https://img.shields.io/badge/C-C99-555?logo=c)](#)
 [![BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
