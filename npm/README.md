@@ -11,15 +11,19 @@
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Reactor-654FF0?logo=webassembly)](#)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)](#)
 
-> Universal Node.js and Browser bindings for **`libislet`**, the high-performance C99 spatial indexing engine and Morton Z-order curve coordinate mapper. Represents the canonical **Space Axis** in the Corm Recall Kernel.
+> Universal Node.js and Browser bindings for **`libislet`**, the high-performance C99 spatial indexing engine and Morton Z-order curve coordinate mapper. Represents the canonical **Space Axis** in the Corm Recall Kernel. Canonical C header: `<ttypt/islet.h>`.
+
+📖 **Full C & Spatial Index Documentation**: See the main [**libislet GitHub README**](https://github.com/tty-pt/libislet#readme) for 2D/3D Morton Z-order curve bit-interleaving, interval bounding boxes, and C API details.
 
 ---
 
-## 1. Quickstart
+## 1. Quickstart & Installation
 
 ```bash
 npm install @tty-pt/islet
 ```
+
+**Native OS Packages (`tty.pt`)**: Prebuilt native C packages (`libislet`) for Linux (`apt`, `apk`, `pacman`, `dnf`), macOS (`brew`), Windows (`winget`, MSYS2), and OpenBSD (`pkg_add`) are available via the [**tty.pt package repositories**](https://github.com/tty-pt/ci/blob/main/docs/install.md).
 
 ```typescript
 import { encodeMorton2D, decodeMorton2D, SpatialIndex } from "@tty-pt/islet";
@@ -85,7 +89,7 @@ Returns the WebAssembly instance loaded on the Stele shared-memory substrate.
 
 ---
 
-## 4. C Development Headers via NPM
+## 5. C Development Headers & Native Integration
 
 ```makefile
 CFLAGS += -I./node_modules/@tty-pt/islet/include
@@ -94,13 +98,6 @@ LDLIBS += -lislet
 
 ---
 
-## 5. Building from Source
-
-```bash
-make npm-build    # Compiles native addon and WASM reactor
-make npm-test     # Runs verification test suite
-```
-
 ## License
 
-BSD 2-Clause License. Copyright (c) 2026, tty-pt.
+BSD-2-Clause — Copyright (c) 2026, Paulo Quirino <quirinpa@gmail.com>. See [LICENSE](https://github.com/tty-pt/libislet/blob/main/LICENSE).
