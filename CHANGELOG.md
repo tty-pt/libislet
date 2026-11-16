@@ -55,6 +55,12 @@
   - Adopted strict `peerDependencies` (`@tty-pt/stele: ">=1.5.0"`, `@tty-pt/corm: ">=2.2.0"`) and `devDependencies` (`@tty-pt/stele: "^1.5.2"`, `@tty-pt/corm: "^2.2.4"`).
   - Migrated build to centralized `make wasm` rule in `external/mk/include.mk` with `-ffreestanding -flto -O3` and post-link `wasm-opt -O3` optimization.
 
+## [1.3.0]
+
+- **Build Portability & Linker Purity**:
+  - Removed hardcoded `/home/quirinpa/.local/lib` RUNPATH and in-tree paths from root and test Makefiles.
+  - Standardized portable `-I` include prefixes across test suites.
+
 ## [1.2.0]
 
 - **Cormr Recall Kernel Integration**: Updated headers and tests to consume `<ttypt/corm.h>` and `<ttypt/cormr.h>`, aligning with the domain-free Recall Kernel architecture.
