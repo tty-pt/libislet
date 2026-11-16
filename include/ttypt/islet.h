@@ -17,6 +17,7 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <ttypt/corm.h>
 
 /* Optimization tunable — a 0/1 flag. ISLET_SIMD_MORTON gates the batch
@@ -1181,6 +1182,22 @@ uint32_t morton_get_bulk(int16_t points[][3], const uint64_t *codes, uint32_t n)
  */
 uint32_t morton_get_bulk4(int16_t points[][4], const uint64_t *codes, uint32_t n);
 #endif
+
+/**
+ * @brief Test if an axis-aligned 2D bounding box contains any discrete data.
+ *
+ * Uses Morton Z-order box iteration to detect if any points exist in [x..x+size-1, y..y+size-1].
+ * Returns true if the box is completely empty (pure procedural wilderness),
+ * false if discrete points or structures are present.
+ *
+ * @param[in] pdb_hd Database handle from islet_open().
+ * @param[in] x      Minimum X coordinate.
+ * @param[in] y      Minimum Y coordinate.
+ * @param[in] size   Physical extent along X and Y.
+ *
+ * @return true if completely empty, false if any point exists.
+ */
+bool islet_box_is_empty(uint32_t pdb_hd, int16_t x, int16_t y, uint16_t size);
 
 /** @} */
 

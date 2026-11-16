@@ -2230,3 +2230,24 @@ void *rec_axis_open(const char *spec)
 		return NULL;
 	return (void *)(uintptr_t)db;
 }
+
+bool islet_box_is_empty(uint32_t pdb_hd, int16_t x, int16_t y, uint16_t size)
+{
+	if (size == 0)
+		return true;
+	int16_t s[2] = { x, y };
+	uint16_t l[2] = { size, size };
+	uint32_t iter = islet_iter_2(pdb_hd, s, l);
+	if (!iter)
+		return true;
+
+	int16_t p[2];
+	uint32_t ref = 0;
+	int has_point = islet_next(p, &ref, iter);
+	if (has_point) {
+		/* Drain remaining iterator items so iterator frees cleanly */
+		while (islet_next(p, &ref, iter)) { }
+		return false;
+	}
+	return true;
+}

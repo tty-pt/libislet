@@ -4,7 +4,7 @@
 
 # libislet
 
-[![npm](https://img.shields.io/badge/npm-@tty-pt/islet-CB3837?logo=npm)](npm/README.md)
+[![npm](https://img.shields.io/badge/npm-@tty--pt/islet-CB3837?logo=npm)](npm/README.md)
 [![C99](https://img.shields.io/badge/C-C99-555?logo=c)](#)
 [![BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![Spatial (Morton)](https://img.shields.io/badge/spatial-Morton-16A34A)](#)
@@ -67,6 +67,8 @@ The recommended API surface uses configuration descriptors (`Point<D>_<B>`, e.g.
 | `Point3_2.fill_bbox`| `Point3_2.fill_bbox(db, min, len, set)` | Stream all 3D box refs directly into a sealed recall candidate set |
 | `Point4_2.put` | `Point4_2.put(db, pos[4], ref)` | Store a 32-bit reference at 4D coordinates (space + scale/time) |
 | `Point4_2.fill_bbox`| `Point4_2.fill_bbox(db, min, len, set)` | Stream all 4D hypercube refs into a sealed recall set |
+| `islet_box_is_empty` | `int islet_box_is_empty(db, dim, min, len)` | Fast O(log N) Morton Z-interval emptiness check without full box scan |
+| `morton_quad_*` | `<ttypt/islet_quad.h>` | 2D hierarchical quadtree Morton keys (`[0..16]` levels) and open-addressed spatial hash map |
 
 👉 *For AVX2 SIMD Morton codecs, multi-value cells, and benchmarks, see [docs/PERF.md](docs/PERF.md).*
 
