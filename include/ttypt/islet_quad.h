@@ -209,21 +209,42 @@ static inline void islet_quad_map_clear(islet_quad_map_t *m)
 	m->count = 0;
 }
 
-static inline bool islet_quad_map_get(const islet_quad_map_t *m, uint64_t key, uint32_t *out_val)
+typedef struct {
+	size_t   cap;
+	size_t   live_entries;
+	size_t   tombstones;
+	uint32_t max_cluster_len;
+	size_t   bytes_allocated;
+} islet_quad_map_stats_t;
+
+static inline bool islet_quad_map_get_probed(const islet_quad_map_t *m, uint64_t key,
+                                             uint32_t *out_val, uint32_t *out_steps)
 {
-	if (!m || !m->states || m->cap == 0) return false;
+	if (!m || !m->states || m->cap == 0) {
+		if (out_steps) *out_steps = 0;
+		return false;
+	}
 	size_t idx = (size_t)(islet_quad_hash64(key) & m->mask);
 	for (size_t step = 0; step < m->cap; step++) {
 		uint8_t st = m->states[idx];
-		if (st == ISLET_QUAD_EMPTY)
+		if (st == ISLET_QUAD_EMPTY) {
+			if (out_steps) *out_steps = (uint32_t)(step + 1);
 			return false;
+		}
 		if (st == 2u && m->keys[idx] == key) {
 			if (out_val) *out_val = m->vals[idx];
+			if (out_steps) *out_steps = (uint32_t)(step + 1);
 			return true;
 		}
 		idx = (idx + 1) & m->mask;
 	}
+	if (out_steps) *out_steps = (uint32_t)m->cap;
 	return false;
+}
+
+static inline bool islet_quad_map_get(const islet_quad_map_t *m, uint64_t key, uint32_t *out_val)
+{
+	return islet_quad_map_get_probed(m, key, out_val, NULL);
 }
 
 static inline bool islet_quad_map_put(islet_quad_map_t *m, uint64_t key, uint32_t val)
@@ -271,13 +292,61 @@ static inline bool islet_quad_map_del(islet_quad_map_t *m, uint64_t key)
 		if (st == ISLET_QUAD_EMPTY)
 			return false;
 		if (st == 2u && m->keys[idx] == key) {
-			m->states[idx] = ISLET_QUAD_TOMBSTONE;
+			/* Backward-shift deletion: closes the hole without tombstones
+			 * so negative lookups never degrade across sustained LRU churn. */
+			size_t hole = idx;
+			size_t cur = (hole + 1) & m->mask;
+			for (size_t s = 1; s < m->cap && m->states[cur] == 2u; s++) {
+				size_t home = (size_t)(islet_quad_hash64(m->keys[cur]) & m->mask);
+				if (((hole - home) & m->mask) < ((cur - home) & m->mask)) {
+					m->keys[hole] = m->keys[cur];
+					m->vals[hole] = m->vals[cur];
+					hole = cur;
+				}
+				cur = (cur + 1) & m->mask;
+			}
+			m->states[hole] = ISLET_QUAD_EMPTY;
 			if (m->count > 0) m->count--;
 			return true;
 		}
 		idx = (idx + 1) & m->mask;
 	}
 	return false;
+}
+
+static inline void islet_quad_map_inspect(const islet_quad_map_t *m, islet_quad_map_stats_t *out)
+{
+	if (!out) return;
+	memset(out, 0, sizeof(*out));
+	if (!m || !m->states || m->cap == 0) return;
+
+	out->cap = m->cap;
+	out->live_entries = m->count;
+	out->bytes_allocated = m->cap * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint8_t));
+
+	uint32_t run = 0;
+	uint32_t max_run = 0;
+	size_t tombs = 0;
+	/* Scan twice cap (stopping cleanly after wrap) to capture wrap-around clusters */
+	for (size_t i = 0; i < m->cap; i++) {
+		uint8_t st = m->states[i];
+		if (st == ISLET_QUAD_TOMBSTONE) {
+			tombs++;
+			run++;
+		} else if (st == 2u) {
+			run++;
+		} else {
+			if (run > max_run) max_run = run;
+			run = 0;
+		}
+	}
+	if (run > 0 && run < m->cap) {
+		for (size_t i = 0; i < m->cap && m->states[i] != ISLET_QUAD_EMPTY; i++)
+			run++;
+	}
+	if (run > max_run) max_run = run;
+	out->tombstones = tombs;
+	out->max_cluster_len = max_run;
 }
 
 /* Hierarchical ancestor query: walks from key's level up to max_level to find finest cached node */
