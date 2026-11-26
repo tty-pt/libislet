@@ -1,3 +1,11 @@
+## [Unreleased]
+
+- **Quadtree Backward-Shift Deletion & Probe Stats (`include/ttypt/islet_quad.h`, `npm/include/ttypt/islet_quad.h`, `tests/unit/test_quad_map.c`)**:
+  - Replaced tombstone marking in `islet_quad_map_del()` with backward-shift deletion so sustained LRU churn produces zero tombstones and prevents negative-lookup degradation (`2a15378`).
+  - Added `islet_quad_map_stats_t`, `islet_quad_map_get_probed()` (reporting lookup probe steps), `islet_quad_map_inspect()` (reporting capacity, live entries, tombstones, max cluster length, and bytes allocated), and unit tests in `tests/unit/test_quad_map.c` (`2a15378`).
+- **Standardized Package Metadata (`npm/package.json`, `npm/README.md`)**:
+  - Standardized author (`Paulo Quirino <quirinpa@gmail.com>`), `BSD-2-Clause` license, and npm `README.md` (`cfe61ea`).
+
 ## [1.6.2] - 2026-11-15
 
 - **Quadtree Spatial Headers & Morton Box Emptiness (`include/ttypt/islet_quad.h`, `npm/include/ttypt/islet_quad.h`, `include/ttypt/islet.h`)**:

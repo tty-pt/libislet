@@ -68,7 +68,7 @@ The recommended API surface uses configuration descriptors (`Point<D>_<B>`, e.g.
 | `Point4_2.put` | `Point4_2.put(db, pos[4], ref)` | Store a 32-bit reference at 4D coordinates (space + scale/time) |
 | `Point4_2.fill_bbox`| `Point4_2.fill_bbox(db, min, len, set)` | Stream all 4D hypercube refs into a sealed recall set |
 | `islet_box_is_empty` | `int islet_box_is_empty(db, dim, min, len)` | Fast O(log N) Morton Z-interval emptiness check without full box scan |
-| `morton_quad_*` | `<ttypt/islet_quad.h>` | 2D hierarchical quadtree Morton keys (`[0..16]` levels) and open-addressed spatial hash map |
+| `morton_quad_*` / `islet_quad_map_*` | `<ttypt/islet_quad.h>` | 2D hierarchical quadtree Morton keys (`[0..16]` levels) and open-addressed spatial hash map with tombstone-free backward-shift deletion (`islet_quad_map_del`), probed lookups (`islet_quad_map_get_probed`), and cluster stats (`islet_quad_map_inspect`) |
 
 👉 *For AVX2 SIMD Morton codecs, multi-value cells, and benchmarks, see [docs/PERF.md](docs/PERF.md).*
 

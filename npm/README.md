@@ -4,14 +4,14 @@
 
 # @tty-pt/islet
 
-[![npm version](https://img.shields.io/badge/npm-v1.6.1-CB3837?logo=npm)](#)
+[![npm version](https://img.shields.io/badge/npm-v1.6.2-CB3837?logo=npm)](#)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue)](#)
 [![TypeScript Ready](https://img.shields.io/badge/TypeScript-Ready-3178C6?logo=typescript)](#)
 [![Node.js Native](https://img.shields.io/badge/Node.js-N--API-339933?logo=node.js)](#)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Reactor-654FF0?logo=webassembly)](#)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)](#)
 
-> Universal Node.js and Browser bindings for **`libislet`**, the high-performance C99 spatial indexing engine and Morton Z-order curve coordinate mapper. Represents the canonical **Space Axis** in the Corm Recall Kernel. Canonical C header: `<ttypt/islet.h>`.
+> Universal Node.js and Browser bindings for **`libislet`**, the high-performance C99 spatial indexing engine and Morton Z-order curve coordinate mapper. Represents the canonical **Space Axis** in the Corm Recall Kernel. Canonical C headers: `<ttypt/islet.h>` and `<ttypt/islet_quad.h>`.
 
 📖 **Full C & Spatial Index Documentation**: See the main [**libislet GitHub README**](https://github.com/tty-pt/libislet#readme) for 2D/3D Morton Z-order curve bit-interleaving, interval bounding boxes, and C API details.
 
